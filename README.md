@@ -5,7 +5,7 @@ Ask a home buyer to describe their dream house, and they probably won't begin wi
 With 79 explanatory variables describing (almost) every aspect of residential homes in Ames, Iowa, this competition challenges you to predict the final price of each home.
 
 ## Practice Skills
-- Creative feature engineering 
-- Model choice limited to GLM techniques, no XGBoost or Random Forest allowed
+- Focus on feature engineering
+- Model choice limited to GLM techniques, no XGBoost or Random Forest
 
 https://www.kaggle.com/c/house-prices-advanced-regression-techniques
