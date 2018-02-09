@@ -246,3 +246,27 @@ levels(training_data$PavedDrive)
 training_data$PavedDrive <- recode(training_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
 test_data$PavedDrive <- recode(test_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
 
+
+
+### ---------- Outliers ----------
+
+# Plotting SalePrice and Log(SalePrice)
+par(mfrow = c(1,2))
+boxplot(training_data$SalePrice, main = "Sale Price")
+boxplot(log(training_data$SalePrice), main = "log(Sale Price)")
+# There are many outliers, but removing them all might bias the prediction for very cheap and very expensive houses, 
+# since the total number of observations is relatively small
+
+# Let's fit a linear model with all the variables and look if the residuals are more helpful in identifying true outliers:
+
+# Fitting a linear model with all the variables
+lm.outlier = lm(SalePrice ~ ., data = training_data)
+
+# Plotting residuals to identify outliers
+par(mfrow = c(2,2))
+plot(lm.outlier)
+
+# Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
+training_data <- training_data[-c(826, 524), ]
+
+
