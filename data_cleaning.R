@@ -207,20 +207,20 @@ training_data$BsmtExposure <- recode(training_data$BsmtExposure, "Gd" = 3, "Av" 
 test_data$BsmtExposure <- recode(test_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)
 
 levels(training_data$BsmtFinType1)
-training_data$BsmtFinType1 <- recode(training_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "Lwq" = 2, "Unf" = 1, "No" = 1)
-test_data$BsmtFinType1 <- recode(test_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "Lwq" = 2, "Unf" = 1, "No" = 1)
+training_data$BsmtFinType1 <- recode(training_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
+test_data$BsmtFinType1 <- recode(test_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
 levels(training_data$BsmtFinType2)
-training_data$BsmtFinType2 <- recode(training_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "Lwq" = 2, "Unf" = 1, "No" = 1)
-test_data$BsmtFinType2 <- recode(test_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "Lwq" = 2, "Unf" = 1, "No" = 1)
+training_data$BsmtFinType2 <- recode(training_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
+test_data$BsmtFinType2 <- recode(test_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
 levels(training_data$HeatingQC)
 training_data$HeatingQC <- recode(training_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
 test_data$HeatingQC <- recode(test_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
 
 levels(training_data$Electrical)
-training_data$Electrical <- recode(training_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1)
-test_data$Electrical <- recode(test_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1)
+training_data$Electrical <- recode(training_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
+test_data$Electrical <- recode(test_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
 
 levels(training_data$KitchenQual)
 training_data$KitchenQual <- recode(training_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
@@ -265,6 +265,7 @@ lm.outlier = lm(SalePrice ~ ., data = training_data)
 # Plotting residuals to identify outliers
 par(mfrow = c(2,2))
 plot(lm.outlier)
+
 
 # Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
 training_data <- training_data[-c(826, 524), ]
