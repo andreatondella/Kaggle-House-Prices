@@ -8,6 +8,10 @@
 source("lib_loading.R")
 source("data_cleaning.R")
 
+### ---------- All_data split ----------
+all_data_split <- c(1:(nrow(raw_training_data)-2))
+training_data <- all_data[all_data_split, ]
+test_data <- all_data[-all_data_split, ]
 ### ---------- Sales Price skewness and log transformation ----------
 
 # get data frame of SalePrice and log(SalePrice + 1) for plotting
@@ -21,11 +25,11 @@ ggplot(data=df) +
 # Log transform the target for official scoring
 training_data$SalePrice <- log1p(training_data$SalePrice)
 ### ---------- Skewness and log transformation for other variables ----------
-skew.thres = 1
+skew.thres = 0.75
 
 # Train Data
 column_types <- sapply(names(training_data),function(x){class(training_data[[x]])})
-numeric_columns <-names(column_types[column_types != "factor"])
+numeric_columns <-names(column_types[column_types == "integer"])
 
 # skew of each variable
 skew <- sapply(numeric_columns,function(x){skewness(training_data[[x]],na.rm = T)})
@@ -38,7 +42,7 @@ for(x in names(skew)) {
 
 # Test Data
 column_types <- sapply(names(test_data),function(x){class(test_data[[x]])})
-numeric_columns <-names(column_types[column_types != "factor"])
+numeric_columns <-names(column_types[column_types == "integer"])
 
 skew2 <- sapply(numeric_columns,function(x){skewness(test_data[[x]],na.rm = T)})
 skew2 <- skew[skew > skew.thres]
@@ -68,12 +72,6 @@ validation <- splits$testset
 # sapply(lapply(na.omit(validation)[sapply(na.omit(validation), is.factor)], droplevels), nlevels)
 # paste("Test set incomplete cases")
 # sapply(lapply(na.omit(test_data)[sapply(na.omit(test_data), is.factor)], droplevels), nlevels)
-
-# Remove the Utilities feature from the dataset (It only has one value)
-training <- training[,-which(names(training) == "Utilities")]
-validation <- validation[,-which(names(validation) == "Utilities")]
-test_data <- test_data[,-which(names(test_data) == "Utilities")]
-
 
 
 # Evaluation
@@ -118,13 +116,17 @@ paste("RMSE for lambda ", lam1se, " = ", sqrt(mean((lasso.pred - validation$Sale
 # filtered_names <- rownames(imp)[order(imp$Overall, decreasing=TRUE)][1:28]
 # print(filtered_names)
 # 
-# # Prediction on the test data
-# log_prediction <- predict(lasso.cv_fit,  s=lasso.cv_fit$lambda.min, newx = data.matrix(test_data[information_gain_features]))
-# actual_pred <- exp(log_prediction)-1
-# hist(actual_pred)
-# submit <- data.frame(Id=test_data$Id,SalePrice=actual_pred)
-# colnames(submit) <-c("Id", "SalePrice")
-# 
-# submit$SalePrice[is.na(submit$SalePrice)] <- 0
-# replace_value_for_na <- sum(na.omit(submit$SalePrice))/(nrow(submit) - sum(submit$SalePrice == 0))
-# submit$SalePrice[submit$SalePrice == 0] <- replace_value_for_na
+# Prediction on the test data
+test_data <- test_data[,-which(names(all_data) == "SalePrice")]
+
+log_prediction <- predict(lasso.cv_fit,  s=lasso.cv_fit$lambda.min, newx = data.matrix(test_data))
+actual_pred <- exp(log_prediction)-1
+hist(actual_pred)
+submit <- data.frame(Id=test_data$Id,SalePrice=actual_pred)
+colnames(submit) <-c("Id", "SalePrice")
+
+submit$SalePrice[is.na(submit$SalePrice)] <- 0
+replace_value_for_na <- sum(na.omit(submit$SalePrice))/(nrow(submit) - sum(submit$SalePrice == 0))
+submit$SalePrice[submit$SalePrice == 0] <- replace_value_for_na
+
+write.csv(submit,file="first_submission.csv",row.names=F)

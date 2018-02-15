@@ -9,146 +9,152 @@ source("lib_loading.R")
 
 ### ---------- Data Reading ----------
 
-training_data = read.csv("train.csv")
-test_data = read.csv("test.csv")
+raw_training_data = read.csv("train.csv")
+raw_test_data = read.csv("test.csv")
 
+raw_test_data$SalePrice <- 0
 
-### ---------- ID Column ----------
+all_data <- rbind(raw_training_data, raw_test_data)
 
-# Check for duplicates ID
-length(unique(training_data$Id)) == nrow(training_data)
-
-# Removing the ID column
-training_data = training_data[ , -which(names(training_data) %in% c("Id"))]
+# ### ---------- ID Column ----------
+# 
+# # Check for duplicates ID
+# length(unique(training_data$Id)) == nrow(training_data)
+# 
+# # Removing the ID column
+# training_data = training_data[ , -which(names(training_data) %in% c("Id"))]
 
 
 ### ---------- Dealing With NAs ----------
 
 # Setting a threshold for the maximum number of NAs allowed in a column. Columns with more NAs than the threshold will be discarded
 na.thres <- 0.10
-na.cols.above <- which(colSums(is.na(training_data)) > (nrow(training_data)*na.thres))
-sort(colSums(sapply(training_data[na.cols.above], is.na)), decreasing = TRUE)
+na.cols.above <- which(colSums(is.na(raw_training_data)) > (nrow(raw_training_data)*na.thres))
+sort(colSums(sapply(raw_training_data[na.cols.above], is.na)), decreasing = TRUE)
 paste('There are', length(na.cols.above), 'columns with the number of missing values above the threshold of', (na.thres*100), '%')
 
 # Dropping the columns above the threshold
 na.cols.drop <- names(na.cols.above)
 
-training_data <- training_data[ ,!(names(training_data) %in% na.cols.drop)]
-test_data <- test_data[ ,!(names(test_data) %in% na.cols.drop)]
+all_data <- all_data[ ,!(names(all_data) %in% na.cols.drop)]
+raw_training_data <- raw_training_data[ ,!(names(raw_training_data) %in% na.cols.drop)]
+raw_test_data <- raw_test_data[ ,!(names(raw_test_data) %in% na.cols.drop)]
 
 # Counting columns with null values
-na.cols <-which(colSums(is.na(training_data)) > 0)
-sort(colSums(sapply(training_data[na.cols], is.na)), decreasing = TRUE)
+na.cols <-which(colSums(is.na(raw_training_data)) > 0)
+sort(colSums(sapply(raw_training_data[na.cols], is.na)), decreasing = TRUE)
 paste('There are', length(na.cols), 'more columns with missing values')
 
 # Dealing with the remaining NAs
 
 # BsmtQual etc : data description says NA for basement features is "no basement"
 # Train data
-training_data$BsmtQual = factor(training_data$BsmtQual, levels=c(levels(training_data$BsmtQual), "No"))
-training_data$BsmtQual[is.na(training_data$BsmtQual)] = "No"
+all_data$BsmtQual = factor(all_data$BsmtQual, levels=c(levels(all_data$BsmtQual), "No"))
+all_data$BsmtQual[is.na(all_data$BsmtQual)] = "No"
 
-training_data$BsmtCond = factor(training_data$BsmtCond, levels=c(levels(training_data$BsmtCond), "No"))
-training_data$BsmtCond[is.na(training_data$BsmtCond)] = "No"
+all_data$BsmtCond = factor(all_data$BsmtCond, levels=c(levels(all_data$BsmtCond), "No"))
+all_data$BsmtCond[is.na(all_data$BsmtCond)] = "No"
 
-training_data$BsmtExposure = factor(training_data$BsmtExposure, levels=c(levels(training_data$BsmtExposure), "NoBsm"))
-training_data$BsmtExposure[is.na(training_data$BsmtExposure)] = "NoBsm"
+all_data$BsmtExposure = factor(all_data$BsmtExposure, levels=c(levels(all_data$BsmtExposure), "NoBsm"))
+all_data$BsmtExposure[is.na(all_data$BsmtExposure)] = "NoBsm"
 
-training_data$BsmtFinType1 = factor(training_data$BsmtFinType1, levels=c(levels(training_data$BsmtFinType1), "No"))
-training_data$BsmtFinType1[is.na(training_data$BsmtFinType1)] = "No"
+all_data$BsmtFinType1 = factor(all_data$BsmtFinType1, levels=c(levels(all_data$BsmtFinType1), "No"))
+all_data$BsmtFinType1[is.na(all_data$BsmtFinType1)] = "No"
 
-training_data$BsmtFinType2 = factor(training_data$BsmtFinType2, levels=c(levels(training_data$BsmtFinType2), "No"))
-training_data$BsmtFinType2[is.na(training_data$BsmtFinType2)] = "No"
+all_data$BsmtFinType2 = factor(all_data$BsmtFinType2, levels=c(levels(all_data$BsmtFinType2), "No"))
+all_data$BsmtFinType2[is.na(all_data$BsmtFinType2)] = "No"
 
-# Test Data
-test_data$BsmtQual = factor(test_data$BsmtQual, levels=c(levels(test_data$BsmtQual), "No"))
-test_data$BsmtQual[is.na(test_data$BsmtQual)] = "No"
-
-test_data$BsmtCond = factor(test_data$BsmtCond, levels=c(levels(test_data$BsmtCond), "No"))
-test_data$BsmtCond[is.na(test_data$BsmtCond)] = "No"
-
-test_data$BsmtExposure = factor(test_data$BsmtExposure, levels=c(levels(test_data$BsmtExposure), "NoBsm"))
-test_data$BsmtExposure[is.na(test_data$BsmtExposure)] = "NoBsm"
-
-test_data$BsmtFinType1 = factor(test_data$BsmtFinType1, levels=c(levels(test_data$BsmtFinType1), "No"))
-test_data$BsmtFinType1[is.na(test_data$BsmtFinType1)] = "No"
-
-test_data$BsmtFinType2 = factor(test_data$BsmtFinType2, levels=c(levels(test_data$BsmtFinType2), "No"))
-test_data$BsmtFinType2[is.na(test_data$BsmtFinType2)] = "No"
+# # Test Data
+# raw_test_data$BsmtQual = factor(raw_test_data$BsmtQual, levels=c(levels(raw_test_data$BsmtQual), "No"))
+# raw_test_data$BsmtQual[is.na(raw_test_data$BsmtQual)] = "No"
+# 
+# raw_test_data$BsmtCond = factor(raw_test_data$BsmtCond, levels=c(levels(raw_test_data$BsmtCond), "No"))
+# raw_test_data$BsmtCond[is.na(raw_test_data$BsmtCond)] = "No"
+# 
+# raw_test_data$BsmtExposure = factor(raw_test_data$BsmtExposure, levels=c(levels(raw_test_data$BsmtExposure), "NoBsm"))
+# raw_test_data$BsmtExposure[is.na(raw_test_data$BsmtExposure)] = "NoBsm"
+# 
+# raw_test_data$BsmtFinType1 = factor(raw_test_data$BsmtFinType1, levels=c(levels(raw_test_data$BsmtFinType1), "No"))
+# raw_test_data$BsmtFinType1[is.na(raw_test_data$BsmtFinType1)] = "No"
+# 
+# raw_test_data$BsmtFinType2 = factor(raw_test_data$BsmtFinType2, levels=c(levels(raw_test_data$BsmtFinType2), "No"))
+# raw_test_data$BsmtFinType2[is.na(raw_test_data$BsmtFinType2)] = "No"
 
 # GarageType etc : data description says NA for garage features is "no garage"
 # Train data
-training_data$GarageType = factor(training_data$GarageType, levels=c(levels(training_data$GarageType), "No"))
-training_data$GarageType[is.na(training_data$GarageType)] = "No"
+all_data$GarageType = factor(all_data$GarageType, levels=c(levels(all_data$GarageType), "No"))
+all_data$GarageType[is.na(all_data$GarageType)] = "No"
 
-training_data$GarageFinish = factor(training_data$GarageFinish, levels=c(levels(training_data$GarageFinish), "No"))
-training_data$GarageFinish[is.na(training_data$GarageFinish)] = "No"
+all_data$GarageFinish = factor(all_data$GarageFinish, levels=c(levels(all_data$GarageFinish), "No"))
+all_data$GarageFinish[is.na(all_data$GarageFinish)] = "No"
 
-training_data$GarageQual = factor(training_data$GarageQual, levels=c(levels(training_data$GarageQual), "No"))
-training_data$GarageQual[is.na(training_data$GarageQual)] = "No"
+all_data$GarageQual = factor(all_data$GarageQual, levels=c(levels(all_data$GarageQual), "No"))
+all_data$GarageQual[is.na(all_data$GarageQual)] = "No"
 
-training_data$GarageCond = factor(training_data$GarageCond, levels=c(levels(training_data$GarageCond), "No"))
-training_data$GarageCond[is.na(training_data$GarageCond)] = "No"
+all_data$GarageCond = factor(all_data$GarageCond, levels=c(levels(all_data$GarageCond), "No"))
+all_data$GarageCond[is.na(all_data$GarageCond)] = "No"
 
-# Test Data
-test_data$GarageType = factor(test_data$GarageType, levels=c(levels(test_data$GarageType), "No"))
-test_data$GarageType[is.na(test_data$GarageType)] = "No"
-
-test_data$GarageFinish = factor(test_data$GarageFinish, levels=c(levels(test_data$GarageFinish), "No"))
-test_data$GarageFinish[is.na(test_data$GarageFinish)] = "No"
-
-test_data$GarageQual = factor(test_data$GarageQual, levels=c(levels(test_data$GarageQual), "No"))
-test_data$GarageQual[is.na(test_data$GarageQual)] = "No"
-
-test_data$GarageCond = factor(test_data$GarageCond, levels=c(levels(test_data$GarageCond), "No"))
-test_data$GarageCond[is.na(test_data$GarageCond)] = "No"
+# # Test Data
+# raw_test_data$GarageType = factor(raw_test_data$GarageType, levels=c(levels(raw_test_data$GarageType), "No"))
+# raw_test_data$GarageType[is.na(raw_test_data$GarageType)] = "No"
+# 
+# raw_test_data$GarageFinish = factor(raw_test_data$GarageFinish, levels=c(levels(raw_test_data$GarageFinish), "No"))
+# raw_test_data$GarageFinish[is.na(raw_test_data$GarageFinish)] = "No"
+# 
+# raw_test_data$GarageQual = factor(raw_test_data$GarageQual, levels=c(levels(raw_test_data$GarageQual), "No"))
+# raw_test_data$GarageQual[is.na(raw_test_data$GarageQual)] = "No"
+# 
+# raw_test_data$GarageCond = factor(raw_test_data$GarageCond, levels=c(levels(raw_test_data$GarageCond), "No"))
+# raw_test_data$GarageCond[is.na(raw_test_data$GarageCond)] = "No"
 
 # MasVnrType : NA most likely means no veneer
 # Train Data
-training_data$MasVnrType[is.na(training_data$MasVnrType)] = "None"
-training_data$MasVnrArea[is.na(training_data$MasVnrArea)] <- 0
+all_data$MasVnrType[is.na(all_data$MasVnrType)] = "None"
+all_data$MasVnrArea[is.na(all_data$MasVnrArea)] <- 0
 
-# Test Data
-test_data$MasVnrType[is.na(test_data$MasVnrType)] = "None"
-test_data$MasVnrArea[is.na(test_data$MasVnrArea)] <- 0
+# # Test Data
+# raw_test_data$MasVnrType[is.na(raw_test_data$MasVnrType)] = "None"
+# raw_test_data$MasVnrArea[is.na(raw_test_data$MasVnrArea)] <- 0
 
 # Electrical : NA means "UNK"
 # Train Data
-training_data$Electrical = factor(training_data$Electrical, levels=c(levels(training_data$Electrical), "UNK"))
-training_data$Electrical[is.na(training_data$Electrical)] = "UNK"
+all_data$Electrical = factor(all_data$Electrical, levels=c(levels(all_data$Electrical), "UNK"))
+all_data$Electrical[is.na(all_data$Electrical)] = "UNK"
 
-# Test Data
-test_data$Electrical = factor(test_data$Electrical, levels=c(levels(test_data$Electrical), "UNK"))
-test_data$Electrical[is.na(test_data$Electrical)] = "UNK"
+# # Test Data
+# raw_test_data$Electrical = factor(raw_test_data$Electrical, levels=c(levels(raw_test_data$Electrical), "UNK"))
+# raw_test_data$Electrical[is.na(raw_test_data$Electrical)] = "UNK"
 
 # GarageYrBlt: It seems reasonable that most houses would build a garage when the house itself was built.
 # Train Data
-idx <- which(is.na(training_data$GarageYrBlt))
-training_data[idx, 'GarageYrBlt'] <- training_data[idx, 'YearBuilt']
+idx <- which(is.na(all_data$GarageYrBlt))
+all_data[idx, 'GarageYrBlt'] <- all_data[idx, 'YearBuilt']
 
-# Test Data
-idx <- which(is.na(test_data$GarageYrBlt))
-test_data[idx, 'GarageYrBlt'] <- test_data[idx, 'YearBuilt']
+# # Test Data
+# idx <- which(is.na(raw_test_data$GarageYrBlt))
+# raw_test_data[idx, 'GarageYrBlt'] <- raw_test_data[idx, 'YearBuilt']
 
-# Counting columns with null values
-na.cols.after <-which(colSums(is.na(training_data)) > 0)
+# Counting columns with null values (in the training portion of the dataset)
+na.cols.after <-which(colSums(is.na(all_data[c(1:nrow(raw_training_data)), ])) > 0)
 paste('There are now', length(na.cols.after), 'columns with missing values')
-
-
-
 
 
 
 ### ---------- Factorizing the desired features ----------
 
 # MS SubClass
-training_data$MSSubClass <- as.factor(training_data$MSSubClass)
-test_data$MSSubClass <- as.factor(test_data$MSSubClass)
+all_data$MSSubClass <- as.factor(all_data$MSSubClass)
+# raw_test_data$MSSubClass <- as.factor(raw_test_data$MSSubClass)
 
 # Mont Sold
-training_data$MoSold <- as.factor(training_data$MoSold)
-test_data$MoSold <- as.factor(test_data$MoSold)
+all_data$MoSold <- as.factor(all_data$MoSold)
+# raw_test_data$MoSold <- as.factor(raw_test_data$MoSold)
 
+# Overall Quality
+all_data$OverallQual <- ordered(as.factor(all_data$OverallQual), levels = c(1:10))
+
+# Overall Condition
+all_data$OverallCond <- ordered(as.factor(all_data$OverallCond), levels = c(1:10))
 
 ### ---------- Dealing With Ordinal Features ----------
 
@@ -174,77 +180,77 @@ test_data$MoSold <- as.factor(test_data$MoSold)
 # Paved Drive: Y - P - N
 
 
-levels(training_data$LotShape)
-training_data$LotShape <- recode(training_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)
-test_data$LotShape <- recode(test_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)
+levels(all_data$LotShape)
+all_data$LotShape <- ordered(as.factor(recode(all_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)), levels = c(1, 2, 3))
+# raw_test_data$LotShape <- recode(raw_test_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)
 
-levels(training_data$Utilities)
-training_data$Utilities <- recode(training_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)
-test_data$Utilities <- recode(test_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)
+levels(all_data$Utilities)
+all_data$Utilities <- ordered(as.factor(recode(all_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)), levels = c(1, 2, 3))
+# raw_test_data$Utilities <- recode(raw_test_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)
 
-levels(training_data$LandSlope)
-training_data$LandSlope <- recode(training_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
-test_data$LandSlope <- recode(test_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
+levels(all_data$LandSlope)
+all_data$LandSlope <- ordered(as.factor(recode(all_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)), levels = c(1, 2, 3))
+# raw_test_data$LandSlope <- recode(raw_test_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
 
-levels(training_data$ExterQual)
-training_data$ExterQual <- recode(training_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
-test_data$ExterQual <- recode(test_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
+levels(all_data$ExterQual)
+all_data$ExterQual <- ordered(as.factor(recode(all_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+# raw_test_data$ExterQual <- recode(raw_test_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
-levels(training_data$ExterCond)
-training_data$ExterCond <- recode(training_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
-test_data$ExterCond <- recode(test_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
+levels(all_data$ExterCond)
+all_data$ExterCond <- ordered(as.factor(recode(all_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+# raw_test_data$ExterCond <- recode(raw_test_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
-levels(training_data$BsmtQual)
-training_data$BsmtQual <- recode(training_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
-test_data$BsmtQual <- recode(test_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
+levels(all_data$BsmtQual)
+all_data$BsmtQual <- ordered(as.factor(recode(all_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$BsmtQual <- recode(raw_test_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
-levels(training_data$BsmtCond)
-training_data$BsmtCond <- recode(training_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
-test_data$BsmtCond <- recode(test_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
+levels(all_data$BsmtCond)
+all_data$BsmtCond <- ordered(as.factor(recode(all_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$BsmtCond <- recode(raw_test_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
-levels(training_data$BsmtExposure)
-training_data$BsmtExposure <- recode(training_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)
-test_data$BsmtExposure <- recode(test_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)
+levels(all_data$BsmtExposure)
+all_data$BsmtExposure <- ordered(as.factor(recode(all_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)), levels = c(1, 2, 3))
+# raw_test_data$BsmtExposure <- recode(raw_test_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)
 
-levels(training_data$BsmtFinType1)
-training_data$BsmtFinType1 <- recode(training_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
-test_data$BsmtFinType1 <- recode(test_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
+levels(all_data$BsmtFinType1)
+all_data$BsmtFinType1 <- ordered(as.factor(recode(all_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$BsmtFinType1 <- recode(raw_test_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
-levels(training_data$BsmtFinType2)
-training_data$BsmtFinType2 <- recode(training_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
-test_data$BsmtFinType2 <- recode(test_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
+levels(all_data$BsmtFinType2)
+all_data$BsmtFinType2 <- ordered(as.factor(recode(all_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$BsmtFinType2 <- recode(raw_test_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
-levels(training_data$HeatingQC)
-training_data$HeatingQC <- recode(training_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
-test_data$HeatingQC <- recode(test_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
+levels(all_data$HeatingQC)
+all_data$HeatingQC <- ordered(as.factor(recode(all_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)), levels = c(1, 2, 3))
+# raw_test_data$HeatingQC <- recode(raw_test_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
 
-levels(training_data$Electrical)
-training_data$Electrical <- recode(training_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
-test_data$Electrical <- recode(test_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
+levels(all_data$Electrical)
+all_data$Electrical <- ordered(as.factor(recode(all_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)), levels = c(1, 2, 3))
+# raw_test_data$Electrical <- recode(raw_test_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
 
-levels(training_data$KitchenQual)
-training_data$KitchenQual <- recode(training_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
-test_data$KitchenQua <- recode(test_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
+levels(all_data$KitchenQual)
+all_data$KitchenQual <- ordered(as.factor(recode(all_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+# raw_test_data$KitchenQua <- recode(raw_test_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
-levels(training_data$Functional)
-training_data$Functional <- recode(training_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)
-test_data$Functional <- recode(test_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)
+levels(all_data$Functional)
+all_data$Functional <- ordered(as.factor(recode(all_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)), levels = c(1, 2, 3))
+# raw_test_data$Functional <- recode(raw_test_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)
 
-levels(training_data$GarageFinish)
-training_data$GarageFinish <- recode(training_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)
-test_data$GarageFinish <- recode(test_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)
+levels(all_data$GarageFinish)
+all_data$GarageFinish <- ordered(as.factor(recode(all_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$GarageFinish <- recode(raw_test_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)
 
-levels(training_data$GarageQual)
-training_data$GarageQual <- recode(training_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
-test_data$GarageQual <- recode(test_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
+levels(all_data$GarageQual)
+all_data$GarageQual <- ordered(as.factor(recode(all_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$GarageQual <- recode(raw_test_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
-levels(training_data$GarageCond)
-training_data$GarageCond <- recode(training_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
-test_data$GarageCond <- recode(test_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
+levels(all_data$GarageCond)
+all_data$GarageCond <- ordered(as.factor(recode(all_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+# raw_test_data$GarageCond <- recode(raw_test_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
-levels(training_data$PavedDrive)
-training_data$PavedDrive <- recode(training_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
-test_data$PavedDrive <- recode(test_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
+levels(all_data$PavedDrive)
+all_data$PavedDrive <- ordered(as.factor(recode(all_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)), levels = c(1, 2, 3))
+# raw_test_data$PavedDrive <- recode(raw_test_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
 
 
 
@@ -252,15 +258,16 @@ test_data$PavedDrive <- recode(test_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
 
 # Plotting SalePrice and Log(SalePrice)
 par(mfrow = c(1,2))
-boxplot(training_data$SalePrice, main = "Sale Price")
-boxplot(log(training_data$SalePrice), main = "log(Sale Price)")
+boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
+boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
 # There are many outliers, but removing them all might bias the prediction for very cheap and very expensive houses, 
 # since the total number of observations is relatively small
 
 # Let's fit a linear model with all the variables and look if the residuals are more helpful in identifying true outliers:
 
 # Fitting a linear model with all the variables
-lm.outlier = lm(SalePrice ~ ., data = training_data)
+lm.outlier = lm(SalePrice ~ ., data = all_data[c(1:nrow(raw_training_data)), ])
+
 
 # Plotting residuals to identify outliers
 par(mfrow = c(2,2))
@@ -268,6 +275,8 @@ plot(lm.outlier)
 
 
 # Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
-training_data <- training_data[-c(826, 524), ]
+all_data <- all_data[-c(826, 524), ]
 
+### ---------- Removing Utilities ----------
+all_data <- all_data[,-which(names(all_data) == "Utilities")]
 
