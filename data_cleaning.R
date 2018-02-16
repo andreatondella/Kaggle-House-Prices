@@ -28,24 +28,82 @@ all_data <- rbind(raw_training_data, raw_test_data)
 ### ---------- Dealing With NAs ----------
 
 # Setting a threshold for the maximum number of NAs allowed in a column. Columns with more NAs than the threshold will be discarded
-na.thres <- 0.10
-na.cols.above <- which(colSums(is.na(raw_training_data)) > (nrow(raw_training_data)*na.thres))
-sort(colSums(sapply(raw_training_data[na.cols.above], is.na)), decreasing = TRUE)
-paste('There are', length(na.cols.above), 'columns with the number of missing values above the threshold of', (na.thres*100), '%')
-
-# Dropping the columns above the threshold
-na.cols.drop <- names(na.cols.above)
-
-all_data <- all_data[ ,!(names(all_data) %in% na.cols.drop)]
-raw_training_data <- raw_training_data[ ,!(names(raw_training_data) %in% na.cols.drop)]
-raw_test_data <- raw_test_data[ ,!(names(raw_test_data) %in% na.cols.drop)]
+# na.thres <- 0.10
+# na.cols.above <- which(colSums(is.na(raw_training_data)) > (nrow(raw_training_data)*na.thres))
+# sort(colSums(sapply(raw_training_data[na.cols.above], is.na)), decreasing = TRUE)
+# paste('There are', length(na.cols.above), 'columns with the number of missing values above the threshold of', (na.thres*100), '%')
+# 
+# # Dropping the columns above the threshold
+# na.cols.drop <- names(na.cols.above)
+# 
+# all_data <- all_data[ ,!(names(all_data) %in% na.cols.drop)]
+# raw_training_data <- raw_training_data[ ,!(names(raw_training_data) %in% na.cols.drop)]
+# raw_test_data <- raw_test_data[ ,!(names(raw_test_data) %in% na.cols.drop)]
 
 # Counting columns with null values
-na.cols <-which(colSums(is.na(raw_training_data)) > 0)
-sort(colSums(sapply(raw_training_data[na.cols], is.na)), decreasing = TRUE)
-paste('There are', length(na.cols), 'more columns with missing values')
+na.cols <-which(colSums(is.na(all_data)) > 0)
+sort(colSums(sapply(all_data[na.cols], is.na)), decreasing = TRUE)
+paste('There are', length(na.cols), 'columns with missing values')
 
-# Dealing with the remaining NAs
+
+# PoolQC: data description says NA means "No Pool"
+all_data$PoolQC = factor(all_data$PoolQC, levels = c(levels(all_data$PoolQC), "No"))
+all_data$PoolQC[is.na(all_data$PoolQC)] = "No"
+
+# MiscFeature: data description says NA means "No misc features"
+all_data$MiscFeature = factor(all_data$MiscFeature, levels = c(levels(all_data$MiscFeature), "No"))
+all_data$MiscFeature[is.na(all_data$MiscFeature)] = "No"
+
+# Fence: data description says NA means "No fence"
+all_data$Fence = factor(all_data$Fence, levels = c(levels(all_data$Fence), "No"))
+all_data$Fence[is.na(all_data$Fence)] = "No"
+
+# Alley: data description says NA means "No alley access"
+all_data$Alley = factor(all_data$Alley, levels = c(levels(all_data$Alley), "No"))
+all_data$Alley[is.na(all_data$Alley)] = "No"
+
+# FireplaceQu: data description says NA means "No fireplace"
+all_data$FireplaceQu = factor(all_data$FireplaceQu, levels = c(levels(all_data$FireplaceQu), "No"))
+all_data$FireplaceQu[is.na(all_data$FireplaceQu)] = "No"
+
+# Lot Frontage: missing values are derived by a linear model that accounts for all the features that affect the lot frontage of a house
+plot(log(all_data$LotArea), log(all_data$LotFrontage), col= all_data$Neighborhood)
+Lot_regression <- lm(log(all_data$LotFrontage) ~ log(all_data$LotArea) + all_data$LotConfig + all_data$LotShape + all_data$Neighborhood)
+
+LotFrontage_pred <- exp(predict(Lot_regression, newdata = all_data))
+
+for (i in c(1:nrow(all_data))){
+  if (is.na(all_data$LotFrontage[i]) == TRUE){
+    all_data$LotFrontage[i] <- LotFrontage_pred[i]
+  }
+}
+
+plot(log(all_data$LotArea), log(all_data$LotFrontage), col= all_data$Neighborhood)
+plot(all_data$LotArea, all_data$LotFrontage, col= all_data$Neighborhood)
+
+# MSZoning 
+all_data <- data.table(all_data)
+summary(all_data$MSZoning)
+
+all_data[all_data$MSZoning == "C (all)", ]
+all_data[is.na(all_data$MSZoning), c("MSZoning", "Neighborhood", "LotArea", "GrLivArea")]
+all_data[, median(GrLivArea), by = MSZoning]
+ggplot(all_data, aes(x = reorder(MSZoning, SalePrice, FUN = mean), y = SalePrice)) + geom_boxplot() 
+
+table(all_data[, Neighborhood, by = MSZoning])
+
+
+# The majority of the commercial properties are locater in IDOTRR and the commercial buldings have the lowest median living area.
+# We can conclude that the two NAs located in IDOTRR with low living area are commercial while the third is residential medium density. 
+# The fourth Na is located in Mitchel and therefore is very likely to be residential low density.
+
+all_data[is.na(MSZoning) & Neighborhood == "IDOTRR" & GrLivArea < 1000, MSZoning := "C (all)"] # Commercial properties in IDOTRR
+all_data[is.na(MSZoning) & Neighborhood == "IDOTRR" & GrLivArea > 1000, MSZoning := "RM"] # Residential property in IDOTRR
+all_data[is.na(MSZoning) & Neighborhood == "Mitchel", MSZoning := "RL"] # Residential in Mitchel
+
+all_data <- data.frame(all_data)
+# Utilities: there is one single level for utilities in the test set, therefore the whole column can be dropped:
+all_data <- all_data[,-which(names(all_data) == "Utilities")]
 
 # BsmtQual etc : data description says NA for basement features is "no basement"
 # Train data
@@ -63,6 +121,28 @@ all_data$BsmtFinType1[is.na(all_data$BsmtFinType1)] = "No"
 
 all_data$BsmtFinType2 = factor(all_data$BsmtFinType2, levels=c(levels(all_data$BsmtFinType2), "No"))
 all_data$BsmtFinType2[is.na(all_data$BsmtFinType2)] = "No"
+
+all_data$BsmtFullBath = factor(all_data$BsmtFullBath, levels=c(levels(all_data$BsmtFullBath), "No"))
+all_data$BsmtFullBath[is.na(all_data$BsmtFullBath)] = "No"
+
+all_data$BsmtHalfBath = factor(all_data$BsmtHalfBath, levels=c(levels(all_data$BsmtHalfBath), "No"))
+all_data$BsmtHalfBath[is.na(all_data$BsmtHalfBath)] = "No"
+
+all_data$BsmtFinSF1 = factor(all_data$BsmtFinSF1, levels=c(levels(all_data$BsmtFinSF1), "No"))
+all_data$BsmtFinSF1[is.na(all_data$BsmtFinSF1)] = "No"
+
+all_data$BsmtFinSF2 = factor(all_data$BsmtFinSF2, levels=c(levels(all_data$BsmtFinSF2), "No"))
+all_data$BsmtFinSF2[is.na(all_data$BsmtFinSF2)] = "No"
+
+all_data$BsmtUnfSF[is.na(all_data$BsmtUnfSF)] = 0
+
+all_data$TotalBsmtSF[is.na(all_data$TotalBsmtSF)] = 0
+
+# Functional: Home functionality (Assume typical unless deductions are warranted)
+plot(all_data$Functional, all_data$SalePrice)
+all_data$Functional[is.na(all_data$Functional)] = "Typ"
+
+
 
 # # Test Data
 # raw_test_data$BsmtQual = factor(raw_test_data$BsmtQual, levels=c(levels(raw_test_data$BsmtQual), "No"))
@@ -116,10 +196,9 @@ all_data$MasVnrArea[is.na(all_data$MasVnrArea)] <- 0
 # raw_test_data$MasVnrType[is.na(raw_test_data$MasVnrType)] = "None"
 # raw_test_data$MasVnrArea[is.na(raw_test_data$MasVnrArea)] <- 0
 
-# Electrical : NA means "UNK"
+# Electrical : Since there's only one missing raw, it can be replaced with SBrkr
 # Train Data
-all_data$Electrical = factor(all_data$Electrical, levels=c(levels(all_data$Electrical), "UNK"))
-all_data$Electrical[is.na(all_data$Electrical)] = "UNK"
+all_data$Electrical[is.na(all_data$Electrical)] = "SBrkr"
 
 # # Test Data
 # raw_test_data$Electrical = factor(raw_test_data$Electrical, levels=c(levels(raw_test_data$Electrical), "UNK"))
@@ -278,5 +357,5 @@ plot(lm.outlier)
 all_data <- all_data[-c(826, 524), ]
 
 ### ---------- Removing Utilities ----------
-all_data <- all_data[,-which(names(all_data) == "Utilities")]
+
 
