@@ -217,6 +217,21 @@ table(all_data[ Neighborhood == "ClearCr" & MSZoning == "RL" & BldgType == "1Fam
 
 # It seems reasonable to assume that kitchen quality is TA (average)
 all_data$KitchenQual[is.na(all_data$KitchenQual)] = "TA"
+
+all_data <- data.frame(all_data)
+
+
+# Sale Type
+all_data <- data.table(all_data)
+summary(all_data$SaleType)
+
+all_data[is.na(all_data$SaleType), "SaleCondition"]
+summary(all_data[SaleCondition == "Normal", SaleType])
+
+# With no other variables influency the type of sale, it seems reasonable to assign WD to the NA sale type
+all_data$SaleType[is.na(all_data$SaleType)] = "WD"
+
+all_data <- data.frame(all_data)
 # # Test Data
 # raw_test_data$GarageType = factor(raw_test_data$GarageType, levels=c(levels(raw_test_data$GarageType), "No"))
 # raw_test_data$GarageType[is.na(raw_test_data$GarageType)] = "No"
@@ -257,8 +272,9 @@ all_data[idx, 'GarageYrBlt'] <- all_data[idx, 'YearBuilt']
 # raw_test_data[idx, 'GarageYrBlt'] <- raw_test_data[idx, 'YearBuilt']
 
 # Counting columns with null values (in the training portion of the dataset)
-na.cols.after <-which(colSums(is.na(all_data[c(1:nrow(raw_training_data)), ])) > 0)
-paste('There are now', length(na.cols.after), 'columns with missing values')
+
+na.cols <-which(colSums(is.na(all_data)) > 0)
+paste('There are', length(na.cols), 'columns with missing values')
 
 
 
