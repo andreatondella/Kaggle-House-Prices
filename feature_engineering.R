@@ -29,7 +29,7 @@ skew.thres = 0.75
 
 # Train Data
 column_types <- sapply(names(training_data),function(x){class(training_data[[x]])})
-numeric_columns <-names(column_types[column_types == "integer"])
+numeric_columns <-names(column_types[column_types != "factor"])
 
 # skew of each variable
 skew <- sapply(numeric_columns,function(x){skewness(training_data[[x]],na.rm = T)})
@@ -42,7 +42,7 @@ for(x in names(skew)) {
 
 # Test Data
 column_types <- sapply(names(test_data),function(x){class(test_data[[x]])})
-numeric_columns <-names(column_types[column_types == "integer"])
+numeric_columns <-names(column_types[column_types != "factor"])
 
 skew2 <- sapply(numeric_columns,function(x){skewness(test_data[[x]],na.rm = T)})
 skew2 <- skew[skew > skew.thres]
