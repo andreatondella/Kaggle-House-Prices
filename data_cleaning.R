@@ -284,11 +284,11 @@ all_data$MSSubClass <- as.factor(all_data$MSSubClass)
 all_data$MoSold <- as.factor(all_data$MoSold)
 # raw_test_data$MoSold <- as.factor(raw_test_data$MoSold)
 
-# Overall Quality
-all_data$OverallQual <- ordered(as.factor(all_data$OverallQual), levels = c(1:10))
-
-# Overall Condition
-all_data$OverallCond <- ordered(as.factor(all_data$OverallCond), levels = c(1:10))
+# # Overall Quality
+# all_data$OverallQual <- ordered(as.factor(all_data$OverallQual), levels = c(1:10))
+# 
+# # Overall Condition
+# all_data$OverallCond <- ordered(as.factor(all_data$OverallCond), levels = c(1:10))
 
 ### ---------- Dealing With Ordinal Features ----------
 

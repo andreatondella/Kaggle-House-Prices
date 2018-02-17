@@ -32,9 +32,9 @@ rownames(all_data[all_data$Id < nrow(raw_training_data) & all_data$LotFrontage >
 
 
 # Plotting SalePrice and Log(SalePrice)
-par(mfrow = c(1,2))
-boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
-boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
+# par(mfrow = c(1,2))
+# boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
+# boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
 # There are many outliers, but removing them all might bias the prediction for very cheap and very expensive houses,
 # since the total number of observations is relatively small
 
@@ -55,33 +55,48 @@ all_data <- all_data[-outliers_rows, ]
 
 # ---------- Log Transformation ----------
 # Plotting SalePrice and Log(SalePrice)
-par(mfrow = c(1,2))
-boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
-boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
+# par(mfrow = c(1,2))
+# boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
+# boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
 
 # Transforming The target variable
 
-all_data$SalePrice <- log1p(all_data$SalePrice)
-summary(all_data$SalePrice[c(1:(nrow(raw_training_data)-length(outliers_rows)))])
+# all_data$SalePrice <- log1p(all_data$SalePrice)
+# summary(all_data$SalePrice[c(1:(nrow(raw_training_data)-length(outliers_rows)))])
 
 
 # Transforming the other variables above a threshold skewness
-all_data <- data.table(all_data)
-list_skewness <- abs(all_data[, sapply(.SD, skewness, na.rm = T), .SDcols = !names(which(sapply(all_data, is.factor)))])
+# all_data <- data.table(all_data)
+# list_skewness <- abs(all_data[, sapply(.SD, skewness, na.rm = T), .SDcols = !names(which(sapply(all_data, is.factor)))])
+# 
+# # Set threshold for skewness
+# skew_thres <- 0.65
+# 
+# # Subset all columns based on skewness threshold  
+# skewed_columns <- names(list_skewness[list_skewness > skew_thres]) 
+# 
+# skewed_columns <- skewed_columns[skewed_columns != "SalePrice"]
+# 
+# 
+# # Subset test for independet test skewness 
+# #skewed_columns_test <- names(list_skewness_test[list_skewness_test > skew_thres]) 
+# 
+# # Transform skewed columns using log1p
+# all_data[, (skewed_columns) := lapply(.SD, log1p), .SDcols = skewed_columns] 
+# 
+# all_data <- data.frame(all_data)
 
-# Set threshold for skewness
-skew_thres <- 0.65
+skew.thres <- 0.75
+i = 0
+for (i in c(1:ncol(all_data))){
+  if ((colnames(all_data[i]) != "Id") & (colnames(all_data[i]) != "SalePrice") & ((class(all_data[ ,i]) == "factor") != TRUE)){
+    print(paste(i, colnames(all_data[i]), class(all_data[ ,i]), "Skewness = ", skewness(all_data[ ,i])))
+    if ((skewness(all_data[ ,i])) > skew.thres){
+      all_data[i] <- log1p(all_data[i])
+      print(paste("Converting = ", colnames(all_data[i]), "New Skewness = ", skewness(all_data[ ,i])))
+    }
+  }
+}
 
-# Subset all columns based on skewness threshold  
-skewed_columns <- names(list_skewness[list_skewness > skew_thres]) 
-
-skewed_columns
 
 
-# Subset test for independet test skewness 
-#skewed_columns_test <- names(list_skewness_test[list_skewness_test > skew_thres]) 
-
-# Transform skewed columns using log1p
-all_data[, (skewed_columns) := lapply(.SD, log1p), .SDcols = skewed_columns] 
-
-all_data <- data.frame(all_data)
