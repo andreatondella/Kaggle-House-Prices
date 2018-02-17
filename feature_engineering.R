@@ -9,7 +9,7 @@ source("lib_loading.R")
 source("data_cleaning.R")
 
 ### ---------- All_data split ----------
-all_data_split <- c(1:(nrow(raw_training_data)-2))
+all_data_split <- c(1:(nrow(raw_training_data)-4))
 training_data <- all_data[all_data_split, ]
 test_data <- all_data[-all_data_split, ]
 ### ---------- Sales Price skewness and log transformation ----------
@@ -129,4 +129,4 @@ submit$SalePrice[is.na(submit$SalePrice)] <- 0
 replace_value_for_na <- sum(na.omit(submit$SalePrice))/(nrow(submit) - sum(submit$SalePrice == 0))
 submit$SalePrice[submit$SalePrice == 0] <- replace_value_for_na
 
-write.csv(submit,file="first_submission.csv",row.names=F)
+write.csv(submit,file="second_submission.csv",row.names=F)

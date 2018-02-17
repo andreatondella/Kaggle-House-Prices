@@ -122,17 +122,13 @@ all_data$BsmtFinType1[is.na(all_data$BsmtFinType1)] = "No"
 all_data$BsmtFinType2 = factor(all_data$BsmtFinType2, levels=c(levels(all_data$BsmtFinType2), "No"))
 all_data$BsmtFinType2[is.na(all_data$BsmtFinType2)] = "No"
 
-all_data$BsmtFullBath = factor(all_data$BsmtFullBath, levels=c(levels(all_data$BsmtFullBath), "No"))
-all_data$BsmtFullBath[is.na(all_data$BsmtFullBath)] = "No"
+all_data$BsmtFullBath[is.na(all_data$BsmtFullBath)] = 0
 
-all_data$BsmtHalfBath = factor(all_data$BsmtHalfBath, levels=c(levels(all_data$BsmtHalfBath), "No"))
-all_data$BsmtHalfBath[is.na(all_data$BsmtHalfBath)] = "No"
+all_data$BsmtHalfBath[is.na(all_data$BsmtHalfBath)] = 0
 
-all_data$BsmtFinSF1 = factor(all_data$BsmtFinSF1, levels=c(levels(all_data$BsmtFinSF1), "No"))
-all_data$BsmtFinSF1[is.na(all_data$BsmtFinSF1)] = "No"
+all_data$BsmtFinSF1[is.na(all_data$BsmtFinSF1)] = 0
 
-all_data$BsmtFinSF2 = factor(all_data$BsmtFinSF2, levels=c(levels(all_data$BsmtFinSF2), "No"))
-all_data$BsmtFinSF2[is.na(all_data$BsmtFinSF2)] = "No"
+all_data$BsmtFinSF2[is.na(all_data$BsmtFinSF2)] = 0
 
 all_data$BsmtUnfSF[is.na(all_data$BsmtUnfSF)] = 0
 
@@ -322,8 +318,8 @@ levels(all_data$LotShape)
 all_data$LotShape <- ordered(as.factor(recode(all_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)), levels = c(1, 2, 3))
 # raw_test_data$LotShape <- recode(raw_test_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)
 
-levels(all_data$Utilities)
-all_data$Utilities <- ordered(as.factor(recode(all_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)), levels = c(1, 2, 3))
+# levels(all_data$Utilities)
+# all_data$Utilities <- ordered(as.factor(recode(all_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)), levels = c(1, 2, 3))
 # raw_test_data$Utilities <- recode(raw_test_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)
 
 levels(all_data$LandSlope)
@@ -413,7 +409,7 @@ plot(lm.outlier)
 
 
 # Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
-all_data <- all_data[-c(826, 524), ]
+all_data <- all_data[-c(826, 524, 1171, 1424), ]
 
 ### ---------- Removing Utilities ----------
 
