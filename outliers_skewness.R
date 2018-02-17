@@ -86,7 +86,7 @@ all_data <- all_data[-outliers_rows, ]
 # 
 # all_data <- data.frame(all_data)
 
-skew.thres <- 0.75
+skew.thres <- 1
 i = 0
 for (i in c(1:ncol(all_data))){
   if ((colnames(all_data[i]) != "Id") & (colnames(all_data[i]) != "SalePrice") & ((class(all_data[ ,i]) == "factor") != TRUE)){
