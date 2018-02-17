@@ -174,6 +174,49 @@ all_data$GarageQual[is.na(all_data$GarageQual)] = "No"
 all_data$GarageCond = factor(all_data$GarageCond, levels=c(levels(all_data$GarageCond), "No"))
 all_data$GarageCond[is.na(all_data$GarageCond)] = "No"
 
+all_data$GarageCars[is.na(all_data$GarageCars)] = 0
+
+all_data$GarageArea[is.na(all_data$GarageArea)] = 0
+
+# Exterior Quality: looking at the average exterior quality of the neighborhood
+all_data <- data.table(all_data)
+summary(all_data$Exterior1st)
+
+par(mfrow = c(2,1))
+
+
+all_data[is.na(all_data$Exterior1st), c("Neighborhood", "MSZoning", "MSSubClass", "BldgType", "RoofMatl", "ExterQual", "YearBuilt", "LotArea", "YearRemodAdd")]
+
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = RoofMatl])
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = BldgType])
+
+table(all_data[ Neighborhood == "Edwards" & YearBuilt < 1955 & YearBuilt > 1935, Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards" & LotArea > 15000, Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards" & YearRemodAdd > 2000, Exterior1st, by = ExterQual])
+
+
+plot(all_data[ Neighborhood == "Edwards" & (Exterior1st == "VinylSd" | Exterior1st == "MetalSd" | Exterior1st == "Wd Sdng") & ExterQual == "TA", Exterior1st], all_data[ Neighborhood == "Edwards" & (Exterior1st == "VinylSd" | Exterior1st == "MetalSd" | Exterior1st == "Wd Sdng")  & ExterQual == "TA", SalePrice])
+
+# It seems uncertain wether the exterior is made of Matel Wood or Vinyl, but Vinyl seems to be the most valid assumption
+
+all_data$Exterior1st[is.na(all_data$Exterior1st)] = "VinylSd"
+all_data$Exterior2nd[is.na(all_data$Exterior2nd)] = "VinylSd"
+all_data <- data.frame(all_data)
+
+# Kitchen Quality
+all_data <- data.table(all_data)
+summary(all_data$Exterior1st)
+
+all_data[is.na(all_data$KitchenQual), c("Neighborhood", "MSZoning", "MSSubClass", "BldgType", "YearBuilt", "YearRemodAdd", "KitchenAbvGr")]
+
+table(all_data[ Neighborhood == "ClearCr" & MSZoning == "RL", KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & MSSubClass == 50, KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & BldgType == "1Fam", KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & MSZoning == "RL" & BldgType == "1Fam" & MSSubClass == 50, KitchenQual])
+
+# It seems reasonable to assume that kitchen quality is TA (average)
+all_data$KitchenQual[is.na(all_data$KitchenQual)] = "TA"
 # # Test Data
 # raw_test_data$GarageType = factor(raw_test_data$GarageType, levels=c(levels(raw_test_data$GarageType), "No"))
 # raw_test_data$GarageType[is.na(raw_test_data$GarageType)] = "No"
