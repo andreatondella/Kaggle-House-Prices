@@ -315,7 +315,7 @@ all_data$OverallCond <- ordered(as.factor(all_data$OverallCond), levels = c(1:10
 
 
 levels(all_data$LotShape)
-all_data$LotShape <- ordered(as.factor(recode(all_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)), levels = c(1, 2, 3))
+all_data$LotShape <- recode(all_data$LotShape, "Reg" = 4, "IR1" = 3, "IR2" = 2, "IR3" = 1)
 # raw_test_data$LotShape <- recode(raw_test_data$LotShape, "Reg" = 3, "IR1" = 3, "IR2" = 2, "IR3" = 1)
 
 # levels(all_data$Utilities)
@@ -323,93 +323,93 @@ all_data$LotShape <- ordered(as.factor(recode(all_data$LotShape, "Reg" = 3, "IR1
 # raw_test_data$Utilities <- recode(raw_test_data$Utilities, "AllPub" = 3, "NoSewr" = 2, "NoSeWa" = 1, "ELO" = 1)
 
 levels(all_data$LandSlope)
-all_data$LandSlope <- ordered(as.factor(recode(all_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)), levels = c(1, 2, 3))
+all_data$LandSlope <- recode(all_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
 # raw_test_data$LandSlope <- recode(raw_test_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
 
 levels(all_data$ExterQual)
-all_data$ExterQual <- ordered(as.factor(recode(all_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+all_data$ExterQual <- recode(all_data$ExterQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
 # raw_test_data$ExterQual <- recode(raw_test_data$ExterQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
 levels(all_data$ExterCond)
-all_data$ExterCond <- ordered(as.factor(recode(all_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+all_data$ExterCond <- recode(all_data$ExterCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
 # raw_test_data$ExterCond <- recode(raw_test_data$ExterCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
 levels(all_data$BsmtQual)
-all_data$BsmtQual <- ordered(as.factor(recode(all_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$BsmtQual <- recode(all_data$BsmtQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
 # raw_test_data$BsmtQual <- recode(raw_test_data$BsmtQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
 levels(all_data$BsmtCond)
-all_data$BsmtCond <- ordered(as.factor(recode(all_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$BsmtCond <- recode(all_data$BsmtCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
 # raw_test_data$BsmtCond <- recode(raw_test_data$BsmtCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
 levels(all_data$BsmtExposure)
-all_data$BsmtExposure <- ordered(as.factor(recode(all_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)), levels = c(1, 2, 3))
+all_data$BsmtExposure <- recode(all_data$BsmtExposure, "Gd" = 4, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 0)
 # raw_test_data$BsmtExposure <- recode(raw_test_data$BsmtExposure, "Gd" = 3, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 1)
 
 levels(all_data$BsmtFinType1)
-all_data$BsmtFinType1 <- ordered(as.factor(recode(all_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$BsmtFinType1 <- recode(all_data$BsmtFinType1, "GLQ" = 6, "ALQ" = 5, "BLQ" = 4, "Rec" = 3, "LwQ" = 2, "Unf" = 1, "No" = 0)
 # raw_test_data$BsmtFinType1 <- recode(raw_test_data$BsmtFinType1, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
 levels(all_data$BsmtFinType2)
-all_data$BsmtFinType2 <- ordered(as.factor(recode(all_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$BsmtFinType2 <- recode(all_data$BsmtFinType2, "GLQ" = 6, "ALQ" = 5, "BLQ" = 4, "Rec" = 3, "LwQ" = 2, "Unf" = 1, "No" = 0)
 # raw_test_data$BsmtFinType2 <- recode(raw_test_data$BsmtFinType2, "GLQ" = 3, "ALQ" = 3, "BLQ" = 2, "Rec" = 2, "LwQ" = 2, "Unf" = 1, "No" = 1)
 
 levels(all_data$HeatingQC)
-all_data$HeatingQC <- ordered(as.factor(recode(all_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)), levels = c(1, 2, 3))
+all_data$HeatingQC <- recode(all_data$HeatingQC, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
 # raw_test_data$HeatingQC <- recode(raw_test_data$HeatingQC, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1)
 
 levels(all_data$Electrical)
-all_data$Electrical <- ordered(as.factor(recode(all_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)), levels = c(1, 2, 3))
+all_data$Electrical <- recode(all_data$Electrical, "SBrkr" = 5, "FuseA" = 4, "Mix" = 3,"FuseF" =2, "FuseP" = 1, "UNK" = 3)
 # raw_test_data$Electrical <- recode(raw_test_data$Electrical, "SBrkr" = 3, "FuseA" = 2, "Mix" = 2,"FuseF" = 1, "FuseP" = 1, "UNK" = 2)
 
 levels(all_data$KitchenQual)
-all_data$KitchenQual <- ordered(as.factor(recode(all_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)), levels = c(1, 2, 3))
+all_data$KitchenQual <- recode(all_data$KitchenQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
 # raw_test_data$KitchenQua <- recode(raw_test_data$KitchenQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 1, "Po" = 1)
 
 levels(all_data$Functional)
-all_data$Functional <- ordered(as.factor(recode(all_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)), levels = c(1, 2, 3))
+all_data$Functional <- recode(all_data$Functional, "Typ" = 8, "Min1" = 7, "Min2" = 6, "Mod" = 5, "Maj1" = 4, "Maj2" = 3, "Sev" = 2, "Sal" = 1)
 # raw_test_data$Functional <- recode(raw_test_data$Functional, "Typ" = 3, "Min1" = 3, "Min2" = 2, "Mod" = 2, "Maj1" = 2, "Maj2" = 1, "Sev" = 1, "Sal" = 1)
 
 levels(all_data$GarageFinish)
-all_data$GarageFinish <- ordered(as.factor(recode(all_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$GarageFinish <- recode(all_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 0)
 # raw_test_data$GarageFinish <- recode(raw_test_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 1)
 
 levels(all_data$GarageQual)
-all_data$GarageQual <- ordered(as.factor(recode(all_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$GarageQual <- recode(all_data$GarageQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
 # raw_test_data$GarageQual <- recode(raw_test_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
 levels(all_data$GarageCond)
-all_data$GarageCond <- ordered(as.factor(recode(all_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)), levels = c(1, 2, 3))
+all_data$GarageCond <- recode(all_data$GarageCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
 # raw_test_data$GarageCond <- recode(raw_test_data$GarageCond, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
 levels(all_data$PavedDrive)
-all_data$PavedDrive <- ordered(as.factor(recode(all_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)), levels = c(1, 2, 3))
+all_data$PavedDrive <- recode(all_data$PavedDrive, "Y" = 2, "P" = 1, "N" = 0)
 # raw_test_data$PavedDrive <- recode(raw_test_data$PavedDrive, "Y" = 3, "P" = 2, "N" = 1)
 
 
 
-### ---------- Outliers ----------
-
-# Plotting SalePrice and Log(SalePrice)
-par(mfrow = c(1,2))
-boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
-boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
-# There are many outliers, but removing them all might bias the prediction for very cheap and very expensive houses, 
-# since the total number of observations is relatively small
-
-# Let's fit a linear model with all the variables and look if the residuals are more helpful in identifying true outliers:
-
-# Fitting a linear model with all the variables
-lm.outlier = lm(SalePrice ~ ., data = all_data[c(1:nrow(raw_training_data)), ])
-
-
-# Plotting residuals to identify outliers
-par(mfrow = c(2,2))
-plot(lm.outlier)
-
-
-# Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
-all_data <- all_data[-c(826, 524, 1171, 1424), ]
+# ### ---------- Outliers ----------
+# 
+# # Plotting SalePrice and Log(SalePrice)
+# par(mfrow = c(1,2))
+# boxplot(all_data[c(1:nrow(raw_training_data)), "SalePrice"], main = "Sale Price")
+# boxplot(log(all_data[c(1:nrow(raw_training_data)), "SalePrice"]), main = "log(Sale Price)")
+# # There are many outliers, but removing them all might bias the prediction for very cheap and very expensive houses, 
+# # since the total number of observations is relatively small
+# 
+# # Let's fit a linear model with all the variables and look if the residuals are more helpful in identifying true outliers:
+# 
+# # Fitting a linear model with all the variables
+# lm.outlier = lm(SalePrice ~ ., data = all_data[c(1:nrow(raw_training_data)), ])
+# 
+# 
+# # Plotting residuals to identify outliers
+# par(mfrow = c(2,2))
+# plot(lm.outlier)
+# 
+# 
+# # Looking at the cook distance, observations 826 and 524 have a clear high influence on the model, let's drop these two observations:
+# all_data <- all_data[-c(826, 524, 1171, 1424), ]
 
 ### ---------- Removing Utilities ----------
 
