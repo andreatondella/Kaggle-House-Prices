@@ -9,6 +9,9 @@ source("lib_loading.R")
 source("data_cleaning.R")
 source("feature_creation.R")
 source("outliers_skewness.R")
+source("dataset_split.R")
+source("full_lm.R")
+source("information_gain.R")
 
 
 # Evaluation
@@ -44,4 +47,4 @@ submit$SalePrice[is.na(submit$SalePrice)] <- 0
 replace_value_for_na <- sum(na.omit(submit$SalePrice))/(nrow(submit) - sum(submit$SalePrice == 0))
 submit$SalePrice[submit$SalePrice == 0] <- replace_value_for_na
 
-write.csv(submit,file="submission_V8.csv",row.names=F)
+write.csv(submit,file="submission_V11.csv",row.names=F)

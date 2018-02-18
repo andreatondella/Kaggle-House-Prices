@@ -5,7 +5,7 @@
 # Machine Learning 2 - Individual Assignment
 # Kaggle House Prices
 
-source("lib_loading.R")
+# source("lib_loading.R")
 
 ### ---------- Data Reading ----------
 

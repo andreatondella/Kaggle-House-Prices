@@ -5,10 +5,10 @@
 # Machine Learning 2 - Individual Assignment
 # Kaggle House Prices
 
-source("lib_loading.R")
-source("data_cleaning.R")
-source("feature_creation.R")
-source("outliers_skewness.R")
+# source("lib_loading.R")
+# source("data_cleaning.R")
+# source("feature_creation.R")
+# source("outliers_skewness.R")
 
 ### ---------- All_data split ----------
 all_data_split <- c(1:(nrow(raw_training_data)-length(outliers_rows)))

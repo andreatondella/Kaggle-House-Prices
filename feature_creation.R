@@ -5,8 +5,8 @@
 # Machine Learning 2 - Individual Assignment
 # Kaggle House Prices
 
-source("lib_loading.R")
-source("data_cleaning.R")
+# source("lib_loading.R")
+# source("data_cleaning.R")
 
 # Garage Interaction = Garage Quality * Number of Cars Garage Holds
 i = 0
