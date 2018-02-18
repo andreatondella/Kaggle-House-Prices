@@ -152,6 +152,14 @@ plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(TotArea)
 plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(TotArea))) + geom_histogram()
 grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
 
+# Total Area 2 = Total house + Garage Area 
+i = 0
+all_data$TotArea2 <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotArea2[i] <- all_data$TotalBsmtSF[i] + all_data$X1stFlrSF[i] + all_data$X2ndFlrSF[i] + all_data$GarageArea[i]
+}
+
 # Basement Score
 
 i = 0
@@ -185,6 +193,56 @@ plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(GarageSc
 plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(GarageScore))) + geom_histogram()
 grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
 
+# Total house = totbsm + tot1st floor + tot 2nd floor
+i = 0
+
+all_data$TotHouse <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotHouse[i] <- all_data$TotalBsmtSF[i] + all_data$X1stFlrSF[i] + all_data$X2ndFlrSF[i] 
+}
+
+# Total House Overall Quality = Total House * Overall Quality
+i = 0
+all_data$TotHouseQual <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotHouseQual[i] <- all_data$TotHouse[i] * all_data$OverallQual[i]
+}
+
+# Gr Living Area Overall Quality = Gr Liv Area * Overall Qual
+i = 0
+all_data$GrLivAreaOver <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GrLivAreaOver[i] <- all_data$GrLivArea[i] * all_data$OverallQual[i]
+}
+
+# Lot Area Overall = LotArea * Overall Qual
+i = 0
+all_data$LotAreaOver <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GrLotAreaOver[i] <- all_data$LotArea[i] * all_data$OverallQual[i]
+}
+
+# Total Area Inside Outside = Total Area + Lot Area
+i = 0
+all_data$TotAreaInOut <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotAreaInOut[i] <- all_data$TotArea[i] + all_data$LotArea[i]
+}
+
+# Porch Area = Total of porch areas
+i = 0
+
+all_data$PorchArea <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$PorchArea[i] <- all_data$OpenPorchSF[i] + all_data$EnclosedPorch[i] + all_data$X3SsnPorch[i] + all_data$ScreenPorch[i]
+}
+
 # Look for seasonality
 
 plot1 <- ggplot(all_data, aes(x = as.factor(YrSold), y = SalePrice)) + geom_boxplot()
@@ -192,6 +250,15 @@ plot2 <- ggplot(all_data, aes(x = as.factor(YrSold), y = log(SalePrice))) + geom
 plot3 <- ggplot(all_data, aes(x = as.factor(MoSold), y = SalePrice)) + geom_boxplot()
 plot4 <- ggplot(all_data, aes(x = as.factor(MoSold), y = log(SalePrice))) + geom_boxplot()
 grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Doesnt seems to be, but let's create a variable that accounts for how many years ago the house was sold
+i = 0
+
+all_data$YearsAgoSold <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$YearsAgoSold[i] <- max(all_data$YrSold) - all_data$YrSold[i]
+}
 
 # Shrinking Factor Variables
 
