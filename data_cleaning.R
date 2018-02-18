@@ -376,7 +376,7 @@ all_data$GarageFinish <- recode(all_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Un
 
 levels(all_data$GarageQual)
 all_data$GarageQual <- recode(all_data$GarageQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
-# raw_test_data$GarageQual <- recode(raw_test_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
+# raw_test_data$GarageQual <- recode(raw_test_data$GarageQual, "Ex" = 3, "Gd" = 3, "TA" = 2, "Fa" = 2, "Po" = 1, "No" = 1)
 
 levels(all_data$GarageCond)
 all_data$GarageCond <- recode(all_data$GarageCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
