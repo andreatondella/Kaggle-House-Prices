@@ -18,7 +18,7 @@
 weights<- data.frame(information.gain(SalePrice~., training_data))
 weights$feature <- rownames(weights)
 weights[order(weights$attr_importance, decreasing = TRUE),]
-information_gain_features <- weights$feature[weights$attr_importance >= 0.02]
+information_gain_features <- weights$feature[weights$attr_importance >= 0.015]
 
 # Evaluation 
 training <- data.frame(training)
