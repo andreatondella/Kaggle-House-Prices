@@ -30,14 +30,14 @@ PCA_df <- cbind(PCA_df, SalePrice, Id)
 
 ### ----------- Model Trial --------
 
-all_data_split <- c(1:(nrow(raw_training_data)-length(outliers_rows)))
-training_data <- PCA_df[all_data_split, ]
-test_data <- PCA_df[-all_data_split, ]
+PCA_all_data_split <- c(1:(nrow(raw_training_data)-length(outliers_rows)))
+PCA_training_data <- PCA_df[PCA_all_data_split, ]
+PCA_test_data <- PCA_df[-PCA_all_data_split, ]
 
-training_data <- training_data[,-which(names(training_data) == "Id")]
-test_data <- test_data[,-which(names(test_data) == "SalePrice")]
+PCA_training_data <- PCA_training_data[,-which(names(PCA_training_data) == "Id")]
+PCA_test_data <- PCA_test_data[,-which(names(PCA_test_data) == "SalePrice")]
 
-training_data$SalePrice <- log1p(training_data$SalePrice)
+PCA_training_data$SalePrice <- log1p(PCA_training_data$SalePrice)
 
 ### ---------- Train and validation splitting ----------
 
@@ -50,6 +50,6 @@ splitdf <- function(dataframe, seed=NULL) {
   testset <- dataframe[-trainindex, ]
   list(trainset=trainset,testset=testset)
 }
-splits <- splitdf(training_data, seed=1)
-training <- data.table(splits$trainset)
-validation <- data.table(splits$testset)
+PCA_splits <- splitdf(PCA_training_data, seed=1)
+PCA_training <- data.table(PCA_splits$trainset)
+PCA_validation <- data.table(PCA_splits$testset)
