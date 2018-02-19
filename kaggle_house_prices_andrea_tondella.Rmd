@@ -1,30 +1,924 @@
 ---
-title: "Kaggle House Prices Andrea Tondella"
-author: "Andrea Tondella"
-date: "2/18/2018"
-output: html_document
+title: "Kaggle House Prices"
+author: "Andrea Tondella - MBD O2"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+##### Kaggle profile: 
+https://www.kaggle.com/andreatondella
 
-## R Markdown
+##### GitHub repository: 
+https://github.com/andreatondella/kaggle_house_prices
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Introduction
 
-```{r cars}
-summary(cars)
+Ask a home buyer to describe their dream house, and they probably won't begin with the height of the basement ceiling or the proximity to an east-west railroad. But this playground competition's dataset proves that much more influences price negotiations than the number of bedrooms or a white-picket fence.
+
+With 79 explanatory variables describing (almost) every aspect of residential homes in Ames, Iowa, this competition challenges you to predict the final price of each home.
+
+### Practice Skills
+- Focus on feature engineering
+- Model choice limited to GLM techniques, no XGBoost or Random Forest
+
+https://www.kaggle.com/c/house-prices-advanced-regression-techniques
+
+## Initial Setup
+
+### Data import
+```{r 1, include=FALSE}
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(moments)
+library(glmnet)
+library(caret)
+library(FSelector)
+library(data.table)
+library(gridExtra)
 ```
 
-## Including Plots
+```{r 2}
+raw_training_data = read.csv("train.csv") # Reading train data
+raw_test_data = read.csv("test.csv") # Readingg test data
 
-You can also embed plots, for example:
+raw_test_data$SalePrice <- 0 # Creating SalePrice column for test data
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+all_data <- rbind(raw_training_data, raw_test_data) # Merging together train and test data
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Data Cleaning
+
+### NA imputation
+
+```{r 3}
+# Counting columns with null values
+na.cols <-which(colSums(is.na(all_data)) > 0)
+sort(colSums(sapply(all_data[na.cols], is.na)), decreasing = TRUE)
+paste('There are', length(na.cols), 'columns with missing values')
+
+# PoolQC: data description says NA means "No Pool"
+all_data$PoolQC = factor(all_data$PoolQC, levels = c(levels(all_data$PoolQC), "No"))
+all_data$PoolQC[is.na(all_data$PoolQC)] = "No"
+
+# MiscFeature: data description says NA means "No misc features"
+all_data$MiscFeature = factor(all_data$MiscFeature, levels = c(levels(all_data$MiscFeature), "No"))
+all_data$MiscFeature[is.na(all_data$MiscFeature)] = "No"
+
+# Fence: data description says NA means "No fence"
+all_data$Fence = factor(all_data$Fence, levels = c(levels(all_data$Fence), "No"))
+all_data$Fence[is.na(all_data$Fence)] = "No"
+
+# Alley: data description says NA means "No alley access"
+all_data$Alley = factor(all_data$Alley, levels = c(levels(all_data$Alley), "No"))
+all_data$Alley[is.na(all_data$Alley)] = "No"
+
+# FireplaceQu: data description says NA means "No fireplace"
+all_data$FireplaceQu = factor(all_data$FireplaceQu, levels = c(levels(all_data$FireplaceQu), "No"))
+all_data$FireplaceQu[is.na(all_data$FireplaceQu)] = "No"
+
+# Lot Frontage: missing values are derived by a linear model that accounts for all the features that affect the lot frontage of a house
+plot(log(all_data$LotArea), log(all_data$LotFrontage), col= all_data$Neighborhood)
+Lot_regression <- lm(log(all_data$LotFrontage) ~ log(all_data$LotArea) + all_data$LotConfig + all_data$LotShape + all_data$Neighborhood)
+
+LotFrontage_pred <- exp(predict(Lot_regression, newdata = all_data))
+
+for (i in c(1:nrow(all_data))){
+  if (is.na(all_data$LotFrontage[i]) == TRUE){
+    all_data$LotFrontage[i] <- LotFrontage_pred[i]
+  }
+}
+
+plot(log(all_data$LotArea), log(all_data$LotFrontage), col= all_data$Neighborhood)
+plot(all_data$LotArea, all_data$LotFrontage, col= all_data$Neighborhood)
+
+# MSZoning 
+all_data <- data.table(all_data)
+summary(all_data$MSZoning)
+
+all_data[is.na(all_data$MSZoning), c("MSZoning", "Neighborhood", "LotArea", "GrLivArea")]
+all_data[, median(GrLivArea), by = MSZoning]
+ggplot(all_data, aes(x = reorder(MSZoning, SalePrice, FUN = mean), y = SalePrice)) + geom_boxplot() 
+
+table(all_data[, Neighborhood, by = MSZoning])
+
+
+# The majority of the commercial properties are locater in IDOTRR and the commercial buldings have the lowest median living area.
+# We can conclude that the two NAs located in IDOTRR with low living area are commercial while the third is residential medium density. 
+# The fourth Na is located in Mitchel and therefore is very likely to be residential low density.
+
+all_data[is.na(MSZoning) & Neighborhood == "IDOTRR" & GrLivArea < 1000, MSZoning := "C (all)"] # Commercial properties in IDOTRR
+all_data[is.na(MSZoning) & Neighborhood == "IDOTRR" & GrLivArea > 1000, MSZoning := "RM"] # Residential property in IDOTRR
+all_data[is.na(MSZoning) & Neighborhood == "Mitchel", MSZoning := "RL"] # Residential in Mitchel
+
+all_data <- data.frame(all_data)
+
+# Utilities: there is one single level for utilities in the test set, therefore the whole column can be dropped:
+all_data <- all_data[,-which(names(all_data) == "Utilities")]
+
+# BsmtQual etc : data description says NA for basement features is "no basement"
+all_data$BsmtQual = factor(all_data$BsmtQual, levels=c(levels(all_data$BsmtQual), "No"))
+all_data$BsmtQual[is.na(all_data$BsmtQual)] = "No"
+
+all_data$BsmtCond = factor(all_data$BsmtCond, levels=c(levels(all_data$BsmtCond), "No"))
+all_data$BsmtCond[is.na(all_data$BsmtCond)] = "No"
+
+all_data$BsmtExposure = factor(all_data$BsmtExposure, levels=c(levels(all_data$BsmtExposure), "NoBsm"))
+all_data$BsmtExposure[is.na(all_data$BsmtExposure)] = "NoBsm"
+
+all_data$BsmtFinType1 = factor(all_data$BsmtFinType1, levels=c(levels(all_data$BsmtFinType1), "No"))
+all_data$BsmtFinType1[is.na(all_data$BsmtFinType1)] = "No"
+
+all_data$BsmtFinType2 = factor(all_data$BsmtFinType2, levels=c(levels(all_data$BsmtFinType2), "No"))
+all_data$BsmtFinType2[is.na(all_data$BsmtFinType2)] = "No"
+
+all_data$BsmtFullBath[is.na(all_data$BsmtFullBath)] = 0
+
+all_data$BsmtHalfBath[is.na(all_data$BsmtHalfBath)] = 0
+
+all_data$BsmtFinSF1[is.na(all_data$BsmtFinSF1)] = 0
+
+all_data$BsmtFinSF2[is.na(all_data$BsmtFinSF2)] = 0
+
+all_data$BsmtUnfSF[is.na(all_data$BsmtUnfSF)] = 0
+
+all_data$TotalBsmtSF[is.na(all_data$TotalBsmtSF)] = 0
+
+# Functional: Home functionality (Assume typical unless deductions are warranted)
+plot(all_data$Functional, all_data$SalePrice)
+all_data$Functional[is.na(all_data$Functional)] = "Typ"
+
+# GarageType etc : data description says NA for garage features is "no garage"
+# Train data
+all_data$GarageType = factor(all_data$GarageType, levels=c(levels(all_data$GarageType), "No"))
+all_data$GarageType[is.na(all_data$GarageType)] = "No"
+
+all_data$GarageFinish = factor(all_data$GarageFinish, levels=c(levels(all_data$GarageFinish), "No"))
+all_data$GarageFinish[is.na(all_data$GarageFinish)] = "No"
+
+all_data$GarageQual = factor(all_data$GarageQual, levels=c(levels(all_data$GarageQual), "No"))
+all_data$GarageQual[is.na(all_data$GarageQual)] = "No"
+
+all_data$GarageCond = factor(all_data$GarageCond, levels=c(levels(all_data$GarageCond), "No"))
+all_data$GarageCond[is.na(all_data$GarageCond)] = "No"
+
+all_data$GarageCars[is.na(all_data$GarageCars)] = 0
+
+all_data$GarageArea[is.na(all_data$GarageArea)] = 0
+
+# Exterior Quality: looking at the average exterior quality of the neighborhood
+all_data <- data.table(all_data)
+summary(all_data$Exterior1st)
+
+all_data[is.na(all_data$Exterior1st), c("Neighborhood", "MSZoning", "MSSubClass", "BldgType", "RoofMatl", "ExterQual", "YearBuilt", "LotArea", "YearRemodAdd")]
+
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = RoofMatl])
+table(all_data[ Neighborhood == "Edwards", Exterior1st, by = BldgType])
+
+table(all_data[ Neighborhood == "Edwards" & YearBuilt < 1955 & YearBuilt > 1935, Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards" & LotArea > 15000, Exterior1st, by = ExterQual])
+table(all_data[ Neighborhood == "Edwards" & YearRemodAdd > 2000, Exterior1st, by = ExterQual])
+
+
+plot(all_data[ Neighborhood == "Edwards" & (Exterior1st == "VinylSd" | Exterior1st == "MetalSd" | Exterior1st == "Wd Sdng") & ExterQual == "TA", Exterior1st], all_data[ Neighborhood == "Edwards" & (Exterior1st == "VinylSd" | Exterior1st == "MetalSd" | Exterior1st == "Wd Sdng")  & ExterQual == "TA", SalePrice])
+
+# It seems uncertain wether the exterior is made of Matel Wood or Vinyl, but given the characteristic of the house and of the similar ones, Vinyl seems to be the most valid assumption
+
+all_data$Exterior1st[is.na(all_data$Exterior1st)] = "VinylSd"
+all_data$Exterior2nd[is.na(all_data$Exterior2nd)] = "VinylSd"
+all_data <- data.frame(all_data)
+
+# Kitchen Quality
+all_data <- data.table(all_data)
+summary(all_data$Exterior1st)
+
+all_data[is.na(all_data$KitchenQual), c("Neighborhood", "MSZoning", "MSSubClass", "BldgType", "YearBuilt", "YearRemodAdd", "KitchenAbvGr")]
+
+table(all_data[ Neighborhood == "ClearCr" & MSZoning == "RL", KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & MSSubClass == 50, KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & BldgType == "1Fam", KitchenQual])
+table(all_data[ Neighborhood == "ClearCr" & MSZoning == "RL" & BldgType == "1Fam" & MSSubClass == 50, KitchenQual])
+
+# It seems reasonable to assume that kitchen quality is TA (average)
+all_data$KitchenQual[is.na(all_data$KitchenQual)] = "TA"
+
+all_data <- data.frame(all_data)
+
+
+# Sale Type
+all_data <- data.table(all_data)
+summary(all_data$SaleType)
+
+all_data[is.na(all_data$SaleType), "SaleCondition"]
+summary(all_data[SaleCondition == "Normal", SaleType])
+
+# With no other variables influency the type of sale, it seems reasonable to assign WD to the NA sale type
+all_data$SaleType[is.na(all_data$SaleType)] = "WD"
+
+all_data <- data.frame(all_data)
+
+# MasVnrType : NA most likely means no veneer
+all_data$MasVnrType[is.na(all_data$MasVnrType)] = "None"
+all_data$MasVnrArea[is.na(all_data$MasVnrArea)] <- 0
+
+# Electrical : Since there's only one missing raw, it can be replaced with SBrkr (the most common value for the column)
+all_data$Electrical[is.na(all_data$Electrical)] = "SBrkr"
+
+# GarageYrBlt: It seems reasonable that most houses would build a garage when the house itself was built.
+idx <- which(is.na(all_data$GarageYrBlt))
+all_data[idx, 'GarageYrBlt'] <- all_data[idx, 'YearBuilt']
+
+```
+
+```{r 5}
+# Counting columns with null values (in the training portion of the dataset)
+na.cols <-which(colSums(is.na(all_data)) > 0)
+paste('There are', length(na.cols), 'columns with missing values')
+```
+
+### Factorizing features
+```{r 6}
+# MS SubClass
+all_data$MSSubClass <- as.factor(all_data$MSSubClass)
+
+# Month Sold
+all_data$MoSold <- as.factor(all_data$MoSold)
+```
+
+### Recoding ordinal factors
+
+#### List of ordinal variables:
+
+- Lot Shape: Reg - IR1 - IR2 - IR3
+- Utilities: AllPub - NoSewr - NoSeWa - ELO
+- Land Slope: Gtl - Mod - Sev
+- Exter Qual: Ex - Gd - TA - Fa - Po
+- Exter Cond: Ex - Gd - TA - Fa - Po
+- Bsm Qual: Ex - Gd - TA - Fa - Po - No
+- Bsm Cond: Ex - Gd - TA - Fa - Po - No
+- Bsm Exp: Gd - Av - Mn - No - NoBsm
+- Bsm Fin Type 1: GLQ - ALQ - BLQ - Rec - Lwq - Unf - No
+- Bsm Fin Type 2: GLQ - ALQ - BLQ - Rec - Lwq - Unf - No
+- HeatingQC: Ex - Gd - TA - Fa - Po
+- Electrical: SBrkr - FuseA - FuseF - FuseP - Mix
+- KitchenQual: Ex - Gd - TA - Fa - Po
+- Functional: Typ - Min1 - Min2 - Mod - Maj1 - Maj2 - Sev - Sal
+- Garage Finish: Fin, RFn, Unf, No
+- Garage Qual: Ex - Gd - TA - Fa - Po - No
+- Garage Cond: Ex -Gd - TA - Fa - Po - No
+- Paved Drive: Y - P - N
+
+#### Recoding:
+```{r 7}
+levels(all_data$LotShape)
+all_data$LotShape <- recode(all_data$LotShape, "Reg" = 4, "IR1" = 3, "IR2" = 2, "IR3" = 1)
+
+levels(all_data$LandSlope)
+all_data$LandSlope <- recode(all_data$LandSlope, "Gtl" = 3, "Mod" = 2, "Sev" = 1)
+
+levels(all_data$ExterQual)
+all_data$ExterQual <- recode(all_data$ExterQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
+
+levels(all_data$ExterCond)
+all_data$ExterCond <- recode(all_data$ExterCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
+
+levels(all_data$BsmtQual)
+all_data$BsmtQual <- recode(all_data$BsmtQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
+
+levels(all_data$BsmtCond)
+all_data$BsmtCond <- recode(all_data$BsmtCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
+
+levels(all_data$BsmtExposure)
+all_data$BsmtExposure <- recode(all_data$BsmtExposure, "Gd" = 4, "Av" = 3, "Mn" = 2, "No" = 1, "NoBsm" = 0)
+
+levels(all_data$BsmtFinType1)
+all_data$BsmtFinType1 <- recode(all_data$BsmtFinType1, "GLQ" = 6, "ALQ" = 5, "BLQ" = 4, "Rec" = 3, "LwQ" = 2, "Unf" = 1, "No" = 0)
+
+levels(all_data$BsmtFinType2)
+all_data$BsmtFinType2 <- recode(all_data$BsmtFinType2, "GLQ" = 6, "ALQ" = 5, "BLQ" = 4, "Rec" = 3, "LwQ" = 2, "Unf" = 1, "No" = 0)
+
+levels(all_data$HeatingQC)
+all_data$HeatingQC <- recode(all_data$HeatingQC, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
+
+levels(all_data$Electrical)
+all_data$Electrical <- recode(all_data$Electrical, "SBrkr" = 5, "FuseA" = 4, "Mix" = 3,"FuseF" =2, "FuseP" = 1, "UNK" = 3)
+
+levels(all_data$KitchenQual)
+all_data$KitchenQual <- recode(all_data$KitchenQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1)
+
+levels(all_data$Functional)
+all_data$Functional <- recode(all_data$Functional, "Typ" = 8, "Min1" = 7, "Min2" = 6, "Mod" = 5, "Maj1" = 4, "Maj2" = 3, "Sev" = 2, "Sal" = 1)
+
+levels(all_data$GarageFinish)
+all_data$GarageFinish <- recode(all_data$GarageFinish, "Fin" = 3, "RFn" = 2, "Unf" = 1, "No" = 0)
+
+levels(all_data$GarageQual)
+all_data$GarageQual <- recode(all_data$GarageQual, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
+
+levels(all_data$GarageCond)
+all_data$GarageCond <- recode(all_data$GarageCond, "Ex" = 5, "Gd" = 4, "TA" = 3, "Fa" = 2, "Po" = 1, "No" = 0)
+
+levels(all_data$PavedDrive)
+all_data$PavedDrive <- recode(all_data$PavedDrive, "Y" = 2, "P" = 1, "N" = 0)
+```
+
+## Feature Creation
+
+### New columns from combination of others
+```{r 8, warning=FALSE}
+# Garage Interaction = Garage Quality * Number of Cars Garage Holds
+i = 0
+all_data$GarageInter <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GarageInter[i] <- all_data$GarageQual[i] * all_data$GarageCars[i]
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = GarageInter, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(GarageInter)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(GarageInter), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(GarageInter))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Total number of bathrooms = Full Bath + Half Bath + Basement Full Bath + Basement Half Bath
+i = 0
+all_data$TotBath <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotBath[i] <- all_data$FullBath[i] + all_data$BsmtFullBath[i] + 0.5*(all_data$HalfBath[i] + all_data$BsmtHalfBath[i])
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = TotBath, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(TotBath)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(TotBath), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(TotBath))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Average Room Size = Above-Ground Living Area / Total Number of R00ms Above Ground
+i = 0
+all_data$AvgRoomSize <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$AvgRoomSize[i] <- all_data$GrLivArea[i] / all_data$TotRmsAbvGrd[i]
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = AvgRoomSize, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(AvgRoomSize)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(AvgRoomSize), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(AvgRoomSize))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Bathroom to room ratio = (Full Bath + Half Bath) / Number of Bedrooms Above Ground
+i = 0
+all_data$BathRoomRat <- NULL
+
+for (i in c(1:nrow(all_data))){
+  if (all_data$BedroomAbvGr[i] == 0){
+    all_data$BathRoomRat[i] <- 0
+  }
+  else{
+    all_data$BathRoomRat[i] <- (all_data$FullBath[i] + all_data$HalfBath[i]) / all_data$BedroomAbvGr[i]
+  }
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = BathRoomRat, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(BathRoomRat)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(BathRoomRat), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(BathRoomRat))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Comparative size of living area = Above-Ground Living Area / mean(Above-Ground Living Area)
+i = 0
+all_data$CompLivArea <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$CompLivArea[i] <- all_data$GrLivArea[i] / mean(all_data$GrLivArea)
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = CompLivArea, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(CompLivArea)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(CompLivArea), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(CompLivArea))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Remodeled = categorical (Y/N)
+i = 0
+all_data$Remod <- NULL
+
+for (i in c(1:nrow(all_data))){
+  if (all_data$YearBuilt[i] == all_data$YearRemodAdd[i]){
+    all_data$Remod[i] <- 0
+  }
+  else{
+    all_data$Remod[i] <- 1
+  }
+}
+
+# New House = categorical (Y/N)
+i = 0
+all_data$NewHouse <- NULL
+
+for (i in c(1:nrow(all_data))){
+  if (all_data$YearBuilt[i] == all_data$YrSold[i]){
+    all_data$NewHouse[i] <- 1
+  }
+  else{
+    all_data$NewHouse[i] <- 0
+  }
+}
+
+# Total Area = sum of all area variables
+i = 0
+all_data$TotArea <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotArea[i] <- all_data$GrLivArea[i] + all_data$TotalBsmtSF[i] 
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = TotArea, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(TotArea)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(TotArea), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(TotArea))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Total Area 2 = Total house + Garage Area 
+i = 0
+all_data$TotArea2 <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotArea2[i] <- all_data$TotalBsmtSF[i] + all_data$X1stFlrSF[i] + all_data$X2ndFlrSF[i] + all_data$GarageArea[i]
+}
+
+# Basement Score
+i = 0
+all_data$BsmtScore <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$BsmtScore[i] <- all_data$BsmtQual[i] + all_data$BsmtCond[i] + all_data$BsmtFinType1[i] + all_data$BsmtFinType2[i] + all_data$BsmtExposure[i]
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = BsmtScore, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(BsmtScore)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(BsmtScore), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(BsmtScore))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+
+# Garage Score
+i = 0
+all_data$GarageScore <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GarageScore[i] <- all_data$GarageFinish[i] + all_data$GarageQual[i] + all_data$GarageCond[i]
+}
+
+plot1 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = GarageScore, y = SalePrice)) + geom_point()
+plot2 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(GarageScore)) + geom_histogram()
+plot3 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = log1p(GarageScore), y = log1p(SalePrice))) + geom_point()
+plot4 <- ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(log1p(GarageScore))) + geom_histogram()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Total house = totbsm + tot1st floor + tot 2nd floor
+i = 0
+all_data$TotHouse <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotHouse[i] <- all_data$TotalBsmtSF[i] + all_data$X1stFlrSF[i] + all_data$X2ndFlrSF[i] 
+}
+
+# Total House Overall Quality = Total House * Overall Quality
+i = 0
+all_data$TotHouseQual <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotHouseQual[i] <- all_data$TotHouse[i] * all_data$OverallQual[i]
+}
+
+# Gr Living Area Overall Quality = Gr Liv Area * Overall Qual
+i = 0
+all_data$GrLivAreaOver <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GrLivAreaOver[i] <- all_data$GrLivArea[i] * all_data$OverallQual[i]
+}
+
+# Lot Area Overall = LotArea * Overall Qual
+i = 0
+all_data$LotAreaOver <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$GrLotAreaOver[i] <- all_data$LotArea[i] * all_data$OverallQual[i]
+}
+
+# Total Area Inside Outside = Total Area + Lot Area
+i = 0
+all_data$TotAreaInOut <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$TotAreaInOut[i] <- all_data$TotArea[i] + all_data$LotArea[i]
+}
+
+# Porch Area = Total of porch areas
+i = 0
+all_data$PorchArea <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$PorchArea[i] <- all_data$OpenPorchSF[i] + all_data$EnclosedPorch[i] + all_data$X3SsnPorch[i] + all_data$ScreenPorch[i]
+}
+
+# Look for seasonality
+
+plot1 <- ggplot(all_data, aes(x = as.factor(YrSold), y = SalePrice)) + geom_boxplot()
+plot2 <- ggplot(all_data, aes(x = as.factor(YrSold), y = log(SalePrice))) + geom_boxplot()
+plot3 <- ggplot(all_data, aes(x = as.factor(MoSold), y = SalePrice)) + geom_boxplot()
+plot4 <- ggplot(all_data, aes(x = as.factor(MoSold), y = log(SalePrice))) + geom_boxplot()
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2, nrow = 2)
+
+# Doesnt seems to be, but let's create a variable that accounts for how many years ago the house was sold
+i = 0
+
+all_data$YearsAgoSold <- NULL
+
+for (i in c(1:nrow(all_data))){
+  all_data$YearsAgoSold[i] <- max(all_data$YrSold) - all_data$YrSold[i]
+}
+```
+
+### New columns by shrinking the categorical features
+```{r 9}
+all_data <- data.table(all_data)
+
+factor_variables <- names(which(sapply(all_data, is.factor)))
+
+i = 0
+
+for (i in c(1:length(factor_variables))){
+  a <- summary(all_data[ ,factor_variables[i], with = FALSE])
+  print(a)
+}
+
+# MSZoning: new columns for residential vs non residential
+summary(all_data$MSZoning)
+all_data[ ,MSZoningSim := recode(MSZoning, "C (all)" = "Com", "FV" = "Res", "RH" = "Res", "RL" = "Res", "RM" = "Res")]
+summary(all_data$MSZoningSim)
+
+# Land Contour: levelled or not
+summary(all_data$LandContour)
+all_data[ ,LandContourSim := recode(LandContour, "Bnk" = "NonL", "HLS" = "NonL", "Low" = "NonL", "Lvl" = "Lev")]
+summary(all_data$LandContourSim)
+
+# BldgType: 1Fam or not
+summary(all_data$BldgType)
+all_data[ ,BldgTypeSim := recode(BldgType, "1Fam" = "1Fam", "2fmCon" = "Other", "Duplex" = "Other", "Twnhs" = "Other", "TwnhsE" = "Other")]
+summary(all_data$BldgTypeSim)
+
+# RoofMatl: CompShg or other
+summary(all_data$RoofMatl)
+all_data[ ,RoofMatlSim := recode(RoofMatl, "ClyTile" = "Other", "CompShg" = "CompShg", "Membran" = "Other", "Metal" = "Other", "Roll" = "Other", "Tar&Grv" = "Other", "WdShake" = "Other", "WdShngl" = "Other")]
+summary(all_data$RoofMatlSim)
+
+# Heating: GasA or other
+summary(all_data$Heating)
+all_data[ ,HeatingSim := recode(Heating, "Floor" = "Other",  "GasA" = "GasA", "GasW" = "Other",  "Grav" = "Other",  "OthW" = "Other",  "Wall" = "Other")]
+summary(all_data$HeatingSim)
+
+# SaleType: WD New or other
+summary(all_data$SaleType)
+all_data[ ,SaleTypeSim := recode(SaleType, "COD" = "Other", "Con" = "Other", "ConLD" = "Other", "ConLI" = "Other", "ConLw" = "Other", "CWD" = "Other", "New" = "New", "Oth" = "Other", "WD" = "WD")]
+summary(all_data$SaleTypeSim)
+
+all_data <- data.frame(all_data)
+```
+
+## Outliers
+
+### Bivariate analysis
+```{r 10}
+ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = GrLivArea, y = SalePrice)) + geom_point()
+
+# Observation with GrLivArea > 4000 and SalePrice < 200000
+rownames(all_data[all_data$Id < nrow(raw_training_data) & all_data$SalePrice < 200000 & all_data$GrLivArea > 4000, ])
+
+ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = LotArea, y = SalePrice)) + geom_point()
+
+# Observations with LotArea > 200000
+rownames(all_data[all_data$Id < nrow(raw_training_data) & all_data$LotArea > 200000, ])
+
+ggplot(all_data[c(1:nrow(raw_training_data)), ], aes(x = LotFrontage, y = SalePrice)) + geom_point()
+
+# Observations with LotFrontage > 300
+rownames(all_data[all_data$Id < nrow(raw_training_data) & all_data$LotFrontage > 300, ])
+```
+
+### Linear model and Cook Distance
+```{r 11}
+# Fitting a linear model with all the variables
+lm.outlier = lm(SalePrice ~ ., data = all_data[c(1:nrow(raw_training_data)), ])
+
+# Plotting residuals to identify outliers
+par(mfrow = c(2,2))
+plot(lm.outlier)
+
+
+
+outliers_rows <- c(524, 1299, 314, 336, 935, 826, 1171, 1424)
+
+```
+
+Looking at the cook distance, observations 826, 524, 1171 and 1424 have a clear high influence on the model. Let's drop them together with the other outliers identified in the bivariate analysis:
+```{r 12}
+outliers_rows <- c(524, 1299, 314, 336, 935, 826, 1171, 1424)
+
+all_data <- all_data[-outliers_rows, ]
+```
+
+## Skewness
+```{r 13}
+# Setting a treshold for the skewness
+skew.thres <- 1
+
+i = 0
+for (i in c(1:ncol(all_data))){
+  if ((colnames(all_data[i]) != "Id") & (colnames(all_data[i]) != "SalePrice") & ((class(all_data[ ,i]) == "factor") != TRUE)){
+    print(paste("Obsertvation: ", i, "Name: ", colnames(all_data[i]), "Class: ", class(all_data[ ,i]), "Skewness = ", skewness(all_data[ ,i])))
+    if ((skewness(all_data[ ,i])) > skew.thres){
+      all_data[i] <- log1p(all_data[i])
+      print(paste("Converting = ", colnames(all_data[i]), ". New Skewness = ", skewness(all_data[ ,i])))
+    }
+  }
+}
+```
+
+## Splitting the dataset
+```{r 14}
+all_data_split <- c(1:(nrow(raw_training_data)-length(outliers_rows)))
+training_data <- all_data[all_data_split, ]
+test_data <- all_data[-all_data_split, ]
+
+training_data <- training_data[,-which(names(training_data) == "Id")] # removing Id column
+test_data <- test_data[,-which(names(test_data) == "SalePrice")] # removing SalePrice column
+
+df <- rbind(data.frame(version="log(price+1)",x=log(training_data$SalePrice + 1)),
+            data.frame(version="price",x=training_data$SalePrice))
+
+ggplot(data=df) +
+  facet_wrap(~version,ncol=2,scales="free_x") +
+  geom_histogram(aes(x=x), bins = 50)
+
+training_data$SalePrice <- log1p(training_data$SalePrice) # taking the log of SalePrice
+
+# Train/Validation split
+splitdf <- function(dataframe, seed=NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  index <- 1:nrow(dataframe)
+  trainindex <- sample(index, trunc(length(index)/1.5))
+  trainset <- dataframe[trainindex, ]
+  testset <- dataframe[-trainindex, ]
+  list(trainset=trainset,testset=testset)
+}
+
+splits <- splitdf(training_data, seed=1)
+training <- data.table(splits$trainset)
+validation <- data.table(splits$testset)
+```
+
+## Fitting a linear model for baseline
+```{r 15, warning=FALSE}
+set.seed(121)
+
+train_control_config <- trainControl(method = "repeatedcv", 
+                                     number = 5, 
+                                     repeats = 1,
+                                     returnResamp = "all")
+
+full.lm.mod <- train(SalePrice ~ ., data = training, 
+                     method = "lm", 
+                     metric = "RMSE",
+                     preProc = c("center", "scale"),
+                     trControl=train_control_config)
+
+for (x in names(validation)) {
+  full.lm.mod$xlevels[[x]] <- union(full.lm.mod$xlevels[[x]], levels(validation[[x]]))
+}
+full.lm.mod.pred <- predict(full.lm.mod, validation[, !"SalePrice", with = F])
+full.lm.mod.pred[is.na(full.lm.mod.pred)] <- 0
+
+my_data=as.data.frame(cbind(predicted=full.lm.mod.pred,observed=validation$SalePrice))
+
+ggplot(my_data,aes(predicted,observed))+
+  geom_point() + geom_smooth(method = "lm") +
+  labs(x="Predicted") +
+  ggtitle('Linear Model')
+
+paste("Full Linear Regression RMSE = ", sqrt(mean((full.lm.mod.pred - validation$SalePrice)^2)))
+
+```
+
+## Principal Components Analysis
+
+### PCA
+```{r 16, warning=FALSE}
+all_data_PCA_df <- all_data
+
+all_data_PCA_df$SalePrice <- NULL
+all_data_PCA_df$Id <- NULL
+SalePrice <- all_data$SalePrice
+Id <- all_data$Id
+
+all_data_PCA_df <- data.matrix(all_data_PCA_df) # Converting to matrix
+
+all_data_PCA <- prcomp(all_data_PCA_df, center = FALSE, scale. = FALSE) # PCA
+
+PCA_df <- all_data_PCA$x # Principal components dataset
+
+principal_components <- 75 # Selecting the number of principal components to keep
+PCA_df <- PCA_df[ ,1:principal_components]
+
+PCA_df <- data.frame(PCA_df)
+
+
+PCA_df <- cbind(PCA_df, SalePrice, Id) # Readding saleprice and id columns
+
+```
+
+### Train and validation splitting
+```{r 17}
+PCA_all_data_split <- c(1:(nrow(raw_training_data)-length(outliers_rows)))
+PCA_training_data <- PCA_df[PCA_all_data_split, ]
+PCA_test_data <- PCA_df[-PCA_all_data_split, ]
+
+PCA_training_data <- PCA_training_data[,-which(names(PCA_training_data) == "Id")]
+PCA_test_data <- PCA_test_data[,-which(names(PCA_test_data) == "SalePrice")]
+
+PCA_training_data$SalePrice <- log1p(PCA_training_data$SalePrice)
+
+PCA_splits <- splitdf(PCA_training_data, seed=1)
+PCA_training <- data.table(PCA_splits$trainset)
+PCA_validation <- data.table(PCA_splits$testset)
+```
+
+## Information Gain
+
+After a number of iterations, the information gain threshold has been set to 0,015.
+```{r 18, warning=FALSE}
+# Selection
+weights<- data.frame(information.gain(SalePrice~., training_data))
+weights$feature <- rownames(weights)
+weights[order(weights$attr_importance, decreasing = TRUE),]
+information_gain_features <- weights$feature[weights$attr_importance >= 0.015]
+
+# Evaluation 
+training <- data.frame(training)
+ig.lm.mod <- train(SalePrice ~ ., data = training[append(information_gain_features, "SalePrice")], 
+                   method = "lm", 
+                   metric = "RMSE",
+                   preProc = c("center", "scale"),
+                   trControl=train_control_config)
+
+for (x in names(validation)) {
+  ig.lm.mod$xlevels[[x]] <- union(ig.lm.mod$xlevels[[x]], levels(validation[[x]]))
+}
+training <- data.table(training)
+ig.lm.mod.pred <- predict(ig.lm.mod, validation[, !"SalePrice", with = F])
+ig.lm.mod.pred[is.na(ig.lm.mod.pred)] <- 0
+
+my_data=as.data.frame(cbind(predicted=ig.lm.mod.pred,observed=validation$SalePrice))
+
+ggplot(my_data,aes(predicted,observed))+
+  geom_point() + geom_smooth(method = "lm") +
+  labs(x="Predicted") +
+  ggtitle('Linear Model')
+
+paste("IG Filtered Linear Regression RMSE = ", sqrt(mean((ig.lm.mod.pred - validation$SalePrice)^2)))
+
+# Filtering
+training <- data.frame(training)
+validation <- data.frame(validation)
+test_data <- data.frame(test_data)
+training <- training[append(information_gain_features, "SalePrice")]
+validation <- validation[append(information_gain_features, "SalePrice")]
+test_data <- test_data[append(information_gain_features, "Id")]
+training <- data.table(training)
+validation <- data.table(validation)
+test_data <- data.table(test_data)
+
+```
+
+## Lasso Regression
+
+### With principal components
+
+Best Kaggle score: 0,12528.
+```{r 19, warning=FALSE}
+# Evaluation
+PCA_lambdas <- 10^seq(-3, 3, by = .1)
+
+PCA_lasso.cv_fit <- cv.glmnet(x = data.matrix(PCA_training[, !"SalePrice", with = F]), y = PCA_training$SalePrice, alpha = 1.5, lambda = PCA_lambdas, nfolds = 20)
+plot(PCA_lasso.cv_fit)
+
+# Select the best lambda form the CV model, use it to predict the target value of the validation set and evaluate the results (in terms of RMSE)
+PCA_bestlam <- PCA_lasso.cv_fit$lambda.min
+paste("Best Lambda value from CV=", PCA_bestlam)
+PCA_lasso.mod <- glmnet(x = data.matrix(PCA_training[, !"SalePrice", with = F]), y = PCA_training$SalePrice, alpha = 1.5, lambda = PCA_lambdas)
+PCA_lasso.pred = predict(PCA_lasso.mod, s=PCA_bestlam, data.matrix(PCA_validation[, !"SalePrice", with = F]))
+paste("RMSE for lambda ", PCA_bestlam, " = ", sqrt(mean((PCA_lasso.pred - PCA_validation$SalePrice)^2)))
+
+# Select the λ1se value from the CV model to predict on the validation set
+PCA_lam1se <- PCA_lasso.cv_fit$lambda.1se
+paste("Lambda 1se value from CV=", PCA_lam1se)
+PCA_lasso.mod <- glmnet(x = data.matrix(PCA_training[, !"SalePrice", with = F]), y=PCA_training$SalePrice, alpha = 1.5, lambda = PCA_lambdas)
+PCA_lasso.pred=predict(PCA_lasso.mod, s=PCA_lam1se, data.matrix(PCA_validation[, !"SalePrice", with = F]))
+paste("RMSE for lambda ", PCA_lam1se, " = ", sqrt(mean((PCA_lasso.pred - PCA_validation$SalePrice)^2)))
+
+# Plot important coefficients 
+PCA_my_data=as.data.frame(cbind(PCA_predicted=PCA_lasso.pred,PCA_observed=PCA_validation$SalePrice))
+
+ggplot(PCA_my_data,aes(PCA_my_data["1"],PCA_observed))+
+  geom_point()+geom_smooth(method="lm")+
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x="Predicted") +
+  ggtitle('Lasso')
+```
+
+### With information gain selected features
+
+Best Kaggle score: 0,12308
+```{r 20, warning=FALSE}
+# Evaluation
+lambdas <- 10^seq(-3, 3, by = .1)
+training <- data.table(training)
+validation <- data.table(validation)
+lasso.cv_fit <- cv.glmnet(x = data.matrix(training[, !"SalePrice", with = F]), y = training$SalePrice, alpha = 1.5, lambda = lambdas, nfolds = 20)
+plot(lasso.cv_fit)
+
+# Select the best lambda form the CV model, use it to predict the target value of the validation set and evaluate the results (in terms of RMSE)
+bestlam <- lasso.cv_fit$lambda.min
+paste("Best Lambda value from CV=", bestlam)
+lasso.mod <- glmnet(x = data.matrix(training[, !"SalePrice", with = F]), y = training$SalePrice, alpha = 1.5, lambda = lambdas)
+lasso.pred = predict(lasso.mod, s=bestlam, data.matrix(validation[, !"SalePrice", with = F]))
+paste("RMSE for lambda ", bestlam, " = ", sqrt(mean((lasso.pred - validation$SalePrice)^2)))
+
+# Select the λ1se value from the CV model to predict on the validation set
+lam1se <- lasso.cv_fit$lambda.1se
+paste("Lambda 1se value from CV=", lam1se)
+lasso.mod <- glmnet(x = data.matrix(training[, !"SalePrice", with = F]), y=training$SalePrice, alpha = 1.5, lambda = lambdas)
+lasso.pred=predict(lasso.mod, s=lam1se, data.matrix(validation[, !"SalePrice", with = F]))
+paste("RMSE for lambda ", lam1se, " = ", sqrt(mean((lasso.pred - validation$SalePrice)^2)))
+
+# Plot important coefficients 
+my_data=as.data.frame(cbind(predicted=lasso.pred,observed=validation$SalePrice))
+
+ggplot(my_data,aes(my_data["1"],observed))+
+  geom_point()+geom_smooth(method="lm")+
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x="Predicted") +
+  ggtitle('Lasso')
+```
+
+## Submission
+
+### PCA Submission
+```{r 21}
+# Prediction on the test data
+PCA_test_data <- data.table(PCA_test_data)
+PCA_log_prediction <- predict(PCA_lasso.cv_fit,  s=PCA_lasso.cv_fit$lambda.min, newx = data.matrix(PCA_test_data[, !"Id", with = F]))
+PCA_actual_pred <- exp(PCA_log_prediction)-1
+hist(PCA_actual_pred)
+PCA_submit <- data.frame(Id=PCA_test_data$Id,SalePrice=PCA_actual_pred)
+colnames(PCA_submit) <-c("Id", "SalePrice")
+
+PCA_submit$SalePrice[is.na(PCA_submit$SalePrice)] <- 0
+PCA_replace_value_for_na <- sum(na.omit(PCA_submit$SalePrice))/(nrow(PCA_submit) - sum(PCA_submit$SalePrice == 0))
+PCA_submit$SalePrice[PCA_submit$SalePrice == 0] <- PCA_replace_value_for_na
+
+write.csv(PCA_submit,file="PCA_submission.csv",row.names=F)
+```
+
+### IG Submission
+```{r 22}
+# Prediction on the test data
+test_data <- data.table(test_data)
+log_prediction <- predict(lasso.cv_fit,  s=lasso.cv_fit$lambda.min, newx = data.matrix(test_data[, !"Id", with = F]))
+actual_pred <- exp(log_prediction)-1
+hist(actual_pred)
+submit <- data.frame(Id=test_data$Id,SalePrice=actual_pred)
+colnames(submit) <-c("Id", "SalePrice")
+
+submit$SalePrice[is.na(submit$SalePrice)] <- 0
+replace_value_for_na <- sum(na.omit(submit$SalePrice))/(nrow(submit) - sum(submit$SalePrice == 0))
+submit$SalePrice[submit$SalePrice == 0] <- replace_value_for_na
+
+write.csv(submit,file="IG_submission.csv",row.names=F)
+```
+
+## Final Remarks
+
+Presented in this document are the two dimensionality reduction/feature selection approaches - PCA and IG - that lead to the best results in term of RMSE. Other techniques such as Chi-Square selection, Ridge regression and different combinations of all of them have been tried but they failed in outperforming PCA + Lasso regression and Information Gain + Lasso regression.
